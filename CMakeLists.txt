@@ -18,7 +18,6 @@ set(AURORA_ENABLE_CARD ON CACHE BOOL "Enable CARD API support" FORCE)
 add_subdirectory(extern/aurora EXCLUDE_FROM_ALL)
 
 add_subdirectory(libs/freeverb)
-add_subdirectory(src/dusk/randomizer)
 
 option(DUSK_BUILD_WARNINGS "If off, compiler warnings will be suppressed")
 option(DUSK_SELECTED_OPT "If on, selected parts of the project will be compiled with optimizations on Debug, intending to make the game run at 30 FPS. Note for MSVC: you will need to remove '/RTC1' from your debug flags in CMake.")
@@ -121,6 +120,8 @@ if (DUSK_MOVIE_SUPPORT_REAL)
   list(APPEND GAME_COMPILE_DEFS MOVIE_SUPPORT=1)
 endif ()
 
+include(src/dusk/randomizer/randomizer.cmake)
+
 # game_debug is for game code files that we know work when compiled with DEBUG=1
 # Of course, if building a release build, this distinction is irrelevant
 add_library(game_debug OBJECT ${JSYSTEM_DEBUG_FILES} ${SSYSTEM_FILES}
@@ -161,7 +162,7 @@ target_link_libraries(game PUBLIC ${GAME_LIBS})
 add_executable(dusk src/dusk/main.cpp)
 target_compile_definitions(dusk PRIVATE TARGET_PC AVOID_UB=1 VERSION=0)
 target_include_directories(dusk PRIVATE include)
-target_link_libraries(dusk PRIVATE game aurora::main freeverb randomizer)
+target_link_libraries(dusk PRIVATE game aurora::main freeverb)
 
 add_custom_command(TARGET dusk POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
