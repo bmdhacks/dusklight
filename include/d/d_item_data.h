@@ -35,7 +35,65 @@ struct dItem_fieldItemResource {
     /* 0xC */ u16 mHeapSize;
 };  // Size: 0x10
 
+#if TARGET_PC
+// Delcared helper functions since we can't include dComIfg_isRandomizer here
+dItem_itemResource* dItem_data_getItemResource();
+dItem_fieldItemResource* dItem_data_getFieldItemResource();
+dItem_itemInfo* dItem_data_getItemInfo();
+#endif
+
 struct dItem_data {
+#if TARGET_PC
+    static const char* getArcName(u8 index) { return dItem_data_getItemResource()[index].mArcName; }
+
+    static s16 getBtpName(u8 index) { return dItem_data_getItemResource()[index].mBtpName; }
+
+    static s16 getBrkName(u8 index) { return dItem_data_getItemResource()[index].mBrkName; }
+
+    static s16 getBxaName(u8 index) { return -1; }
+
+    static s16 getBckName(u8 index) { return dItem_data_getItemResource()[index].mBckName; }
+
+    static s16 getBpkName(u8 index) { return -1; }
+
+    static s16 getBtkName(u8 index) { return dItem_data_getItemResource()[index].mBtkName; }
+
+    static s16 getBmdName(u8 index) { return dItem_data_getItemResource()[index].mBmdName; }
+
+    static s8 getTevFrm(u8 index) { return dItem_data_getItemResource()[index].mTevFrm; }
+
+    static s8 getBtpFrm(u8 index) { return dItem_data_getItemResource()[index].mBtpFrm; }
+
+    static s16 getTexture(u8 index) { return dItem_data_getItemResource()[index].mTexture; }
+
+    static u8 getTexScale (u8 index) { return dItem_data_getItemResource()[index].mTexScale; }
+
+    static const char* getFieldArc(u8 index) { return dItem_data_getFieldItemResource()[index].mFieldArc; }
+
+    static s16 getItemBmdName(u8 index) { return dItem_data_getFieldItemResource()[index].mItemBmdName; }
+
+    static s16 getItemBtkName(u8 index) { return -1; }
+
+    static s16 getItemBpkName(u8 index) { return -1; }
+
+    static s16 getItemBckName(u8 index) { return dItem_data_getFieldItemResource()[index].mItemBckName; }
+
+    static s16 getItemBxaName(u8 index) { return -1; }
+
+    static s16 getItemBrkName(u8 index) { return dItem_data_getFieldItemResource()[index].mItemBrkName; }
+
+    static s16 getItemBtpName(u8 index) { return -1; }
+
+    static BOOL chkFlag(u8 index, int flag) { return dItem_data_getItemInfo()[index].mFlag & flag; }
+
+    static u8 getShadowSize(u8 index) { return dItem_data_getItemInfo()[index].mShadowSize; }
+
+    static const u8 getH(u8 index) { return dItem_data_getItemInfo()[index].mH; }
+
+    static const u8 getR(u8 index) { return dItem_data_getItemInfo()[index].mR; }
+
+    static u16 getFieldHeapSize(u8 index) { return dItem_data_getFieldItemResource()[index].mHeapSize; }
+#else
     static const char* getArcName(u8 index) { return item_resource[index].mArcName; }
 
     static s16 getBtpName(u8 index) { return item_resource[index].mBtpName; }
@@ -85,10 +143,16 @@ struct dItem_data {
     static const u8 getR(u8 index) { return item_info[index].mR; }
 
     static u16 getFieldHeapSize(u8 index) { return field_item_res[index].mHeapSize; } 
+#endif
 
     static dItem_itemResource item_resource[255];
     static dItem_fieldItemResource field_item_res[255];
     static dItem_itemInfo item_info[255];
+#if TARGET_PC
+    static dItem_itemResource item_resource_randomizer[255];
+    static dItem_fieldItemResource field_item_res_randomizer[255];
+    static dItem_itemInfo item_info_randomizer[255];
+#endif
 };
 
 enum {
