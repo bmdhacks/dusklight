@@ -1269,7 +1269,11 @@ void daNpc_Fairy_c::AppearDemoCall() {
             } else {
                 mEvtNo = EVT_APPEAR_50F_02;
             }
+#if TARGET_PC
+        } else if (dComIfGs_checkEmptyBottle() || dComIfG_isRandomizer()) {
+#else
         } else if (dComIfGs_checkEmptyBottle()) {
+#endif
             mEvtNo = EVT_APPEAR_50F_01;
         } else {
             mEvtNo = EVT_APPEAR_50F_04;

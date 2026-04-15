@@ -8,6 +8,9 @@
 #include "d/d_item.h"
 #include "d/d_com_inf_game.h"
 #include "d/d_meter2_info.h"
+#if TARGET_PC
+#include "dusk/randomizer/game/verify_item_functions.h"
+#endif
 #include <cstring>
 
 static void (*item_func_ptr[256])() = {
@@ -541,6 +544,10 @@ inline void getItemFunc(u8 i_itemNo) {
 }
 
 void execItemGet(u8 i_itemNo) {
+#if TARGET_PC
+    if (dComIfG_isRandomizer())
+        i_itemNo = verifyProgressiveItem(i_itemNo);
+#endif
     getItemFunc(i_itemNo);
 }
 
