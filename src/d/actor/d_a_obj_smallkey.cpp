@@ -157,7 +157,7 @@ int daKey_c::create() {
 
     m_itemNo = dItemNo_SMALL_KEY_e;
 
-    if (strcmp(dComIfGp_getStartStageName(), "F_SP118") == 0) {
+    if (strcmp(dComIfGp_getStartStageName(), "F_SP118") == 0 IF_DUSK(&& !randomizer_IsActive())) {
         OS_REPORT(" SMKEY 0\n");
         if (dComIfGs_isTbox(getSaveBitNo())) {
             OS_REPORT(" SMKEY 1\n");
