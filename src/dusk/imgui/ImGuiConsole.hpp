@@ -9,7 +9,6 @@
 #include <SDL3/SDL_touch.h>
 
 #include "ImGuiFirstRunPreset.hpp"
-#include "ImGuiMenuEnhancements.hpp"
 #include "ImGuiMenuGame.hpp"
 #include "ImGuiMenuTools.hpp"
 #include "ImGuiMenuRandomizer.hpp"

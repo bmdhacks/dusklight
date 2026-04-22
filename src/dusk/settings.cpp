@@ -42,13 +42,16 @@ UserSettings g_userSettings = {
         .enableMirrorMode {"game.enableMirrorMode", false},
         .invertCameraXAxis {"game.invertCameraXAxis", false},
         .disableMainHUD {"game.disableMainHUD", false},
+        .pauseOnFocusLost {"game.pauseOnFocusLost", false},
 
         // Graphics
         .bloomMode {"game.bloomMode", BloomMode::Classic},
         .bloomMultiplier {"game.bloomMultiplier", 1.0f},
-        .enableWaterRefraction {"game.enableWaterRefraction", true},
+        .disableWaterRefraction {"game.disableWaterRefraction", false},
         .enableFrameInterpolation = {"game.enableFrameInterpolation", false},
+        .internalResolutionScale {"game.internalResolutionScale", 0},
         .shadowResolutionMultiplier {"game.shadowResolutionMultiplier", 1},
+        .enableDepthOfField {"game.enableDepthOfField", true},
 
         // Audio
         .noLowHpSound {"game.noLowHpSound", false},
@@ -66,6 +69,15 @@ UserSettings g_userSettings = {
         .gyroInvertYaw {"game.gyroInvertYaw", false},
 
         // Cheats
+        .infiniteHearts {"game.infiniteHearts", false},
+        .infiniteArrows{"game.infiniteArrows", false},
+        .infiniteBombs{"game.infiniteBombs", false},
+        .infiniteOil{"game.infiniteOil", false},
+        .infiniteOxygen{"game.infiniteOxygen", false},
+        .infiniteRupees{"game.infiniteRupees", false},
+        .moonJump{"game.moonJump", false},
+        .superClawshot{"game.superClawshot", false},
+        .alwaysGreatspin{"game.alwaysGreatspin", false},
         .enableFastIronBoots {"game.enableFastIronBoots", false},
         .canTransformAnywhere {"game.canTransformAnywhere", false},
         .fastSpinner {"game.fastSpinner", false},
@@ -126,10 +138,13 @@ void registerSettings() {
     Register(g_userSettings.game.enableMirrorMode);
     Register(g_userSettings.game.invertCameraXAxis);
     Register(g_userSettings.game.disableMainHUD);
+    Register(g_userSettings.game.pauseOnFocusLost);
     Register(g_userSettings.game.bloomMode);
     Register(g_userSettings.game.bloomMultiplier);
-    Register(g_userSettings.game.enableWaterRefraction);
+    Register(g_userSettings.game.disableWaterRefraction);
+    Register(g_userSettings.game.internalResolutionScale);
     Register(g_userSettings.game.shadowResolutionMultiplier);
+    Register(g_userSettings.game.enableDepthOfField);
     Register(g_userSettings.game.enableFastIronBoots);
     Register(g_userSettings.game.canTransformAnywhere);
     Register(g_userSettings.game.freeMagicArmor);
@@ -139,6 +154,15 @@ void registerSettings() {
     Register(g_userSettings.game.midnasLamentNonStop);
     Register(g_userSettings.game.enableTurboKeybind);
     Register(g_userSettings.game.fastSpinner);
+    Register(g_userSettings.game.infiniteHearts);
+    Register(g_userSettings.game.infiniteArrows);
+    Register(g_userSettings.game.infiniteBombs);
+    Register(g_userSettings.game.infiniteOil);
+    Register(g_userSettings.game.infiniteOxygen);
+    Register(g_userSettings.game.infiniteRupees);
+    Register(g_userSettings.game.moonJump);
+    Register(g_userSettings.game.superClawshot);
+    Register(g_userSettings.game.alwaysGreatspin);
     Register(g_userSettings.game.enableFrameInterpolation);
     Register(g_userSettings.game.enableGyroAim);
     Register(g_userSettings.game.enableGyroRollgoal);

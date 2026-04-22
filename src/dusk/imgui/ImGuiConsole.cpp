@@ -17,6 +17,7 @@
 #include "dusk/audio/DuskAudioSystem.h"
 #include "dusk/config.hpp"
 #include "dusk/dusk.h"
+#include "dusk/frame_interpolation.h"
 #include "dusk/main.h"
 #include "dusk/settings.h"
 #include "m_Do/m_Do_controller_pad.h"
@@ -281,7 +282,7 @@ namespace dusk {
     void ImGuiConsole::UpdateSettings() {
         getTransientSettings().skipFrameRateLimit = getSettings().game.enableTurboKeybind && ImGui::IsKeyDown(ImGuiKey_Tab);
 
-        if (mDoMain::developmentMode == 1 && mDoCPd_c::getHoldL(PAD_1) && mDoCPd_c::getHoldR(PAD_1) && mDoCPd_c::getTrigY(PAD_1)) {
+        if (dusk::frame_interp::get_ui_tick_pending() && mDoMain::developmentMode == 1 && (mDoCPd_c::getHold(PAD_1) & (PAD_TRIGGER_R | PAD_TRIGGER_L)) == (PAD_TRIGGER_R | PAD_TRIGGER_L) && mDoCPd_c::getTrigY(PAD_1)) {
             getTransientSettings().moveLinkActive = !getTransientSettings().moveLinkActive;
         }
         if (mDoMain::developmentMode != 1) {
@@ -318,6 +319,9 @@ namespace dusk {
             }
         }
 
+        // The menu bar renders with ImGuiCol_WindowBg behind it. We just want ImGuiCol_MenuBarBg,
+        // so make the window bg fully transparent temporarily
+        ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f));
         if (showMenu && ImGui::BeginMainMenuBar()) {
             m_menuGame.draw();
             m_menuEnhancements.draw();
@@ -336,6 +340,7 @@ namespace dusk {
 
             ImGui::EndMainMenuBar();
         }
+        ImGui::PopStyleColor();
 
         if (!getSettings().backend.wasPresetChosen) {
             m_firstRunPreset.draw();
