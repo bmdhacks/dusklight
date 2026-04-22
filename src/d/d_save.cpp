@@ -20,6 +20,12 @@
 #include <cstdio>
 #include <cstring>
 
+#if TARGET_PC
+#include "dusk/randomizer/game/flags.h"
+#include "dusk/randomizer/game/stages.h"
+#include "dusk/randomizer/game/tools.h"
+#endif
+
 #if PLATFORM_WII || PLATFORM_SHIELD
 #include <revolution/sc.h>
 #include <revolution/wpad.h>
@@ -1339,6 +1345,86 @@ void dSv_event_c::offEventBit(u16 i_no) {
 }
 
 BOOL dSv_event_c::isEventBit(const u16 i_no) const {
+#if TARGET_PC
+    if (randomizer_IsActive()) {
+        switch (i_no)
+        {
+            case BO_TALKED_TO_YOU_AFTER_OPENING_IRON_BOOTS_CHEST:
+            {
+                if (daAlink_c::checkStageName(allStages[Ordon_Village_Interiors])) {
+                    if (dComIfGs_isEventBit(HEARD_BO_TEXT_AFTER_SUMO_FIGHT)) {
+                        return true;
+                    }
+                    return false;
+                }
+                break;
+            }
+            case GORON_MINES_CLEARED:
+            {
+                if (daAlink_c::checkStageName(allStages[Goron_Mines]) || daAlink_c::checkStageName(allStages[Death_Mountain_Interiors])){
+                    return false; // The gorons will not act properly if the flag is set.
+                }
+                break;
+            }
+            case ZORA_ESCORT_CLEARED:
+            {
+                if (daAlink_c::checkStageName(allStages[Castle_Town])){
+                    return true; // If the flag isn't set the player will be thrown into escort when they open the door
+                }
+
+                if (playerIsInRoomStage(0, allStages[Kakariko_Village_Interiors])) {
+                    return true; // Return true to prevent Renado/Ilia crash after ToT
+                }
+                break;
+            }
+            case CITY_IN_THE_SKY_CLEARED: // Would like to find where this is checked and patch it there.
+            {
+                if (!dComIfGs_isEventBit(FIXED_THE_MIRROR_OF_TWILIGHT)) {
+                    if (randomizer_GetContext().mSettings.at("Palace of Twilight Requirements") == "Vanilla") {
+                        return false;
+                    }
+                }
+                break;
+            }
+            case HOWLED_AT_SNOWPEAK_STONE:
+            {
+                if (daAlink_c::checkStageName(allStages[Snowpeak]))
+                {
+                    return false; // return false so the player can howl at the stone multiple times to remove map glitch
+                }
+                break;
+            }
+            case WATCHED_CUTSCENE_AFTER_GOATS_2:
+            {
+                if (playerIsInRoomStage(1, allStages[Ordon_Village_Interiors]))
+                {
+                    if (dComIfGs_isEventBit(SERAS_CAT_RETURNED_TO_SHOP))
+                    {
+                        return false; // Return false so sera will give the milk item once they help the cat.
+                    }
+                    else
+                    {
+                        return true; // Return true so the player can always use the shop, even if the cat is not returned.
+                    }
+                }
+                break;
+            }
+            case FIXED_THE_MIRROR_OF_TWILIGHT:
+            {
+                if (daAlink_c::checkStageName(allStages[Palace_of_Twilight]))
+                {
+                    return true; // If the flag is not set, the player cannot leave PoT from the inside.
+                }
+                break;
+            }
+            default:
+            {
+                break;
+            }
+        }
+    }
+#endif
+
     return mEvent[i_no >> 8] & (i_no & 0xFF) ? TRUE : FALSE;
 }
 
