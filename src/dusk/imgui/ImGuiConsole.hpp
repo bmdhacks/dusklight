@@ -52,7 +52,6 @@ private:
 
     ImGuiFirstRunPreset m_firstRunPreset;
     ImGuiMenuGame m_menuGame;
-    ImGuiMenuEnhancements m_menuEnhancements;
     ImGuiMenuMods m_menuMods;
     ImGuiPreLaunchWindow m_preLaunchWindow;
 
