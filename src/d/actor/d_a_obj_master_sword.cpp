@@ -45,6 +45,21 @@ void daObjMasterSword_c::executeWait() {
     }
 
     if (fopAcM_checkCarryNow(this)) {
+#if TARGET_PC
+        // In rando, give the master sword and shadow crystal location items
+        if (randomizer_IsActive()) {
+            u8 itemToGive = randomizer_getItemAtLocation("Sacred Grove Pedestal Master Sword");
+            g_randomizerState.addItemToEventQueue(itemToGive);
+
+            itemToGive = randomizer_getItemAtLocation("Sacred Grove Pedestal Shadow Crystal");
+            g_randomizerState.addItemToEventQueue(itemToGive);
+
+            // Set the necessary flags to de-spawn the MS and set the save file event flag.
+            dComIfGs_onTmpBit(0x820);
+            dComIfGs_onEventBit(0x2120);
+            return;
+        }
+#endif
         dMeter2Info_setCloth(dItemNo_WEAR_KOKIRI_e, false);
         fopAcM_orderMapToolEvent(this, getEventID(), 0xFF, 0xFFFF, 1, 0);
     }
@@ -186,6 +201,13 @@ int daObjMasterSword_c::execute() {
     mBrk.play();
 
     if (dComIfGs_isTmpBit(dSv_event_tmp_flag_c::tempBitLabels[73])) {
+#if TARGET_PC
+        // Don't automatically give the master sword in randomizer
+        if (randomizer_IsActive()) {
+            fopAcM_delete(this);
+            return 1;
+        }
+#endif
         dComIfGs_onItemFirstBit(dItemNo_MASTER_SWORD_e);
         dMeter2Info_setSword(dItemNo_MASTER_SWORD_e, false);
         dComIfGs_setSelectEquipSword(dItemNo_MASTER_SWORD_e);
