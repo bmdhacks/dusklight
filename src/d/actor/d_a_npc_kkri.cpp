@@ -9,6 +9,8 @@
 #include "d/actor/d_a_e_ym.h"
 #include <cstring>
 
+#include "dusk/randomizer/game/verify_item_functions.h"
+
 static int l_bmdData[2][2] = {
     {35, 1},
     {18, 2},
@@ -1181,6 +1183,15 @@ int daNpc_Kkri_c::talk(void*) {
                     switch (eventId) {
                     case 1:
                         if (mItemPartnerId == fpcM_ERROR_PROCESS_ID_e) {
+#if TARGET_PC
+                            if (randomizer_IsActive()) {
+                                if (item_no == dItemNo_OIL_BOTTLE3_e) {
+                                    item_no = verifyProgressiveItem(randomizer_getItemAtLocation("Coro Bottle"));
+                                } /*else if (item_no == dItemNo_SMALL_KEY_e) { // Might be Small Key 2
+                                    item_no = verifyProgressiveItem(randomizer_getItemAtLocation("Coro Gate Key"));
+                                }*/
+                            }
+#endif
                             mItemPartnerId = fopAcM_createItemForPresentDemo(&current.pos, item_no, 0, -1, -1, NULL, NULL);
                         }
 
