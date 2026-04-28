@@ -29,6 +29,7 @@ namespace dusk {
         void ShowStateShare();
         void ShowAchievements();
         void notifyAchievement(std::string name);
+        void ShowActorSpawner();
 
     private:
 		bool m_showDebugOverlay = false;
@@ -71,6 +72,8 @@ namespace dusk {
 
         bool m_showAchievements = false;
         ImGuiAchievements m_achievementsWindow;
+
+        bool m_showActorSpawner = false;
     };
 }
 

@@ -1,4 +1,4 @@
-#include "JSystem/JSystem.h" // IWYU pragma: keep
+﻿#include "JSystem/JSystem.h" // IWYU pragma: keep
 
 #include "JSystem/JKernel/JKRSolidHeap.h"
 #include "JSystem/JGadget/binary.h"
@@ -7,6 +7,11 @@
 #include "global.h"
 #include <stdint.h>
 #include <cstdlib>
+#if TARGET_PC
+#include "dusk/vmem.h"
+#include <algorithm>
+#include "dusk/logging.h"
+#endif
 
 JKRSolidHeap* JKRSolidHeap::create(u32 size, JKRHeap* heap, bool useErrorHandler) {
     if (!heap) {
@@ -19,18 +24,56 @@ JKRSolidHeap* JKRSolidHeap::create(u32 size, JKRHeap* heap, bool useErrorHandler
     }
 
     u32 alignedSize = ALIGN_PREV(size, 0x10);
-    if (alignedSize < solidHeapSize)
+    if (alignedSize < solidHeapSize) {
         return NULL;
+    }
 
+#if TARGET_PC
+    u8* vmemBase = (u8*)dusk::vmem_arena_alloc(JKR_HEAP_VIRTUAL_RESERVE);
+    if (!vmemBase) {
+        return NULL;
+    }
+    const size_t pageSize = dusk::vmem_page_size();
+    size_t commitSize = ALIGN_NEXT((size_t)alignedSize, pageSize);
+    if (!dusk::vmem_commit(vmemBase, commitSize)) {
+        dusk::vmem_arena_free(vmemBase, JKR_HEAP_VIRTUAL_RESERVE);
+        return NULL;
+    }
+
+    u8* mem      = vmemBase;
+    void* dataPtr = mem + solidHeapSize;
+
+    JKRSolidHeap* newHeap = JKR_NEW_ARGS(mem) JKRSolidHeap(dataPtr, alignedSize - solidHeapSize, heap, useErrorHandler);
+    if (newHeap == NULL) {
+        dusk::vmem_arena_free(vmemBase, JKR_HEAP_VIRTUAL_RESERVE);
+        return NULL;
+    }
+
+    newHeap->mVmemBase      = vmemBase;
+    newHeap->mVmemCapacity  = JKR_HEAP_VIRTUAL_RESERVE;
+    newHeap->mVmemCommitted = commitSize;
+    return newHeap;
+#else
     u8* mem = (u8*)JKRAllocFromHeap(heap, alignedSize, 0x10);
     void* dataPtr = mem + solidHeapSize;
-    if (!mem)
+    if (!mem) {
         return NULL;
+    }
 
     return JKR_NEW_ARGS (mem) JKRSolidHeap(dataPtr, alignedSize - solidHeapSize, heap, useErrorHandler);
+#endif
 }
 
 void JKRSolidHeap::do_destroy(void) {
+#if TARGET_PC
+    if (mVmemBase) {
+        void*  vmemBase     = mVmemBase;
+        size_t vmemCapacity = mVmemCapacity;
+        this->~JKRSolidHeap();
+        dusk::vmem_arena_free(vmemBase, vmemCapacity);
+        return;
+    }
+#endif
     JKRHeap* parent = getParent();
     if (parent) {
         this->~JKRSolidHeap();
@@ -44,6 +87,11 @@ JKRSolidHeap::JKRSolidHeap(void* start, u32 size, JKRHeap* parent, bool useError
     mSolidHead = (u8*)mStart;
     mSolidTail = (u8*)mEnd;
     field_0x78 = NULL;
+#if TARGET_PC
+    mVmemBase      = nullptr;
+    mVmemCapacity  = 0;
+    mVmemCommitted = 0;
+#endif
 #if DEBUG
     if (mDebugFill) {
         JKRFillMemory(mStart, mSize, JKRValue_DEBUGFILL_NOTUSE);
@@ -59,6 +107,15 @@ s32 JKRSolidHeap::adjustSize(void) {
     int r25 = 0;
     JKRHeap* parent = getParent();
     if (parent) {
+#if TARGET_PC
+        if (mVmemBase) {
+            // VM-backed heap, can't resize in parent, but this is not a failure
+            // Return what the trimmed size would have been so the caller doesn't log an error
+            u32 thisSize = (uintptr_t)mStart - (uintptr_t)this;
+            u32 newSize  = ALIGN_NEXT(mSolidHead - mStart, 0x20);
+            return (s32)(thisSize + newSize);
+        }
+#endif
         lock();
         u32 thisSize = (uintptr_t)mStart - (uintptr_t)this;
         u32 newSize = ALIGN_NEXT(mSolidHead - mStart, 0x20);
@@ -110,6 +167,11 @@ void* JKRSolidHeap::allocFromHead(u32 size, int alignment) {
     void* ptr = NULL;
     uintptr_t alignedStart = (alignment - 1 + (uintptr_t)mSolidHead) & ~(alignment - 1);
     u32 totalSize = size + (alignedStart - (uintptr_t)mSolidHead);
+#if TARGET_PC
+    if (totalSize > mFreeSize && mVmemBase) {
+        growHeap(totalSize);
+    }
+#endif
     if (totalSize <= mFreeSize) {
 #if DEBUG
         if (mCheckMemoryFilled) {
@@ -137,6 +199,15 @@ void* JKRSolidHeap::allocFromTail(u32 size, int alignment) {
     void* ptr = NULL;
     uintptr_t alignedStart = ALIGN_PREV((uintptr_t)mSolidTail - size, alignment);
     u32 totalSize = (uintptr_t)mSolidTail - (uintptr_t)alignedStart;
+#if TARGET_PC
+    if (totalSize > mFreeSize && mVmemBase) {
+        if (growHeap(totalSize)) {
+            // mSolidTail moved to new mEnd; recompute from the new tail position
+            alignedStart = ALIGN_PREV((uintptr_t)mSolidTail - size, alignment);
+            totalSize    = (uintptr_t)mSolidTail - (uintptr_t)alignedStart;
+        }
+    }
+#endif
     if (totalSize <= mFreeSize) {
         ptr = (void*)alignedStart;
         mSolidTail -= totalSize;
@@ -157,6 +228,47 @@ void* JKRSolidHeap::allocFromTail(u32 size, int alignment) {
     }
     return ptr;
 }
+
+#if TARGET_PC
+bool JKRSolidHeap::growHeap(u32 needed) {
+    // Growth is only safe when no tail allocations exist yet
+    if (mSolidTail != mEnd) {
+        return false;
+    }
+
+    const size_t pageSize = dusk::vmem_page_size();
+    size_t wantBytes  = (size_t)needed;
+    size_t growAmount = std::max(wantBytes, JKR_HEAP_GROW_CHUNK);
+    growAmount = ALIGN_NEXT(growAmount, pageSize);
+
+    size_t remaining = mVmemCapacity - mVmemCommitted;
+    if (growAmount > remaining) {
+        growAmount = ALIGN_PREV(remaining, pageSize);
+        if (growAmount < wantBytes) {
+            return false;
+        }
+    }
+
+    void* commitBase = (u8*)mVmemBase + mVmemCommitted;
+    if (!dusk::vmem_commit(commitBase, growAmount)) {
+        return false;
+    }
+
+    // Extend the heap end and the tail pointer
+    mEnd       = (u8*)mEnd + growAmount;
+    mSolidTail = mEnd;
+    mFreeSize += (u32)growAmount;
+    mSize     += (u32)growAmount;
+    mVmemCommitted += growAmount;
+
+    DuskLog.debug("[JKRSolidHeap] '{}' grew by {} MB (committed: {} MB / reserved: {} MB)\n",
+             getName(),
+             growAmount     / (1024 * 1024),
+             mVmemCommitted / (1024 * 1024),
+             mVmemCapacity  / (1024 * 1024));
+    return true;
+}
+#endif
 
 void JKRSolidHeap::do_free(void* ptr) {
     JUTWarningConsole_f("free: cannot free memory block (%08x)\n", ptr);

@@ -1453,6 +1453,7 @@ set(DUSK_FILES
         src/dusk/imgui/ImGuiProcessOverlay.cpp
         src/dusk/imgui/ImGuiCameraOverlay.cpp
         src/dusk/imgui/ImGuiHeapOverlay.cpp
+        src/dusk/imgui/ImGuiActorSpawner.cpp
         src/dusk/imgui/ImGuiDebugPad.cpp
         src/dusk/imgui/ImGuiControllerOverlay.cpp
         src/dusk/imgui/ImGuiStubLog.cpp
@@ -1466,6 +1467,7 @@ set(DUSK_FILES
         src/dusk/iso_validate.cpp
         src/dusk/livesplit.cpp
         src/dusk/offset_ptr.cpp
+        src/dusk/vmem.cpp
         src/dusk/OSContext.cpp
         src/dusk/OSThread.cpp
         src/dusk/OSMutex.cpp

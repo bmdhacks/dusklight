@@ -78,7 +78,14 @@ void dEyeHL_mng_c::remove(dEyeHL_c* i_obj) {
             next = m_obj;
         }
 
+#if TARGET_PC
+        // Skip the write if the heap owning m_timg was already destroyed
+        if (JKRHeap::findFromRoot(i_obj->m_timg) != nullptr) {
+            i_obj->m_timg->LODBias = i_obj->m_lodBias;
+        }
+#else
         i_obj->m_timg->LODBias = i_obj->m_lodBias;
+#endif
         i_obj->m_timg = NULL;
         i_obj->m_pre = NULL;
         i_obj->m_next = NULL;

@@ -10,6 +10,11 @@
 #include "JSystem/JUtility/JUTConsole.h"
 #include "JSystem/JUtility/JUTException.h"
 #include <cstdlib>
+#if TARGET_PC
+#include "dusk/vmem.h"
+#include <algorithm>
+#include "dusk/logging.h"
+#endif
 
 JKRExpHeap* JKRExpHeap::createRoot(int maxHeaps, bool errorFlag) {
     JKRExpHeap* heap = NULL;
@@ -71,21 +76,49 @@ JKRExpHeap* JKRExpHeap::create(u32 size, JKRHeap* parent, bool errorFlag) {
 
     u32 alignedSize = ALIGN_PREV(size, 0x10);
 
-    if (alignedSize < expHeapSize + blockSize)
+    if (alignedSize < expHeapSize + blockSize) {
         return NULL;
+    }
 
-    u8* memory = (u8*)JKRAllocFromHeap(parent, alignedSize, 0x10);
-    u8* dataPtr = (memory + expHeapSize);
+#if TARGET_PC
+    u8* vmemBase = (u8*)dusk::vmem_arena_alloc(JKR_HEAP_VIRTUAL_RESERVE);
+    if (!vmemBase) {
+        return NULL;
+    }
+
+    const size_t pageSize = dusk::vmem_page_size();
+    size_t commitSize = ALIGN_NEXT((size_t)alignedSize, pageSize);
+    if (!dusk::vmem_commit(vmemBase, commitSize)) {
+        dusk::vmem_arena_free(vmemBase, JKR_HEAP_VIRTUAL_RESERVE);
+        return NULL;
+    }
+
+    u8* memory  = vmemBase;
+    u8* dataPtr = memory + expHeapSize;
+
+    newHeap = JKR_NEW_ARGS(memory) JKRExpHeap(dataPtr, alignedSize - expHeapSize, parent, errorFlag);
+    if (newHeap == NULL) {
+        dusk::vmem_arena_free(vmemBase, JKR_HEAP_VIRTUAL_RESERVE);
+        return NULL;
+    }
+
+    newHeap->mVmemBase      = vmemBase;
+    newHeap->mVmemCapacity  = JKR_HEAP_VIRTUAL_RESERVE;
+    newHeap->mVmemCommitted = commitSize;
+#else
+    u8* memory  = (u8*)JKRAllocFromHeap(parent, alignedSize, 0x10);
+    u8* dataPtr = memory + expHeapSize;
     if (!memory) {
         return NULL;
     }
 
-    newHeap = JKR_NEW_ARGS (memory) JKRExpHeap(dataPtr, alignedSize - expHeapSize, parent, errorFlag);
-
+    newHeap = JKR_NEW_ARGS(memory) JKRExpHeap(dataPtr, alignedSize - expHeapSize, parent, errorFlag);
     if (newHeap == NULL) {
         JKRFree(memory);
         return NULL;
     }
+#endif
+
 #if DEBUG
     if (newHeap) {
         u8* local_30 = dataPtr + sizeof(CMemBlock);
@@ -102,9 +135,16 @@ JKRExpHeap* JKRExpHeap::create(u32 size, JKRHeap* parent, bool errorFlag) {
 JKRExpHeap* JKRExpHeap::create(void* ptr, u32 size, JKRHeap* parent, bool errorFlag) {
     JKRHeap* parent2;
     if (parent == NULL) {
+#if TARGET_PC
+        // VM-backed heaps live outside the root heap's address range, so find() fails
+        // findAllHeap() searches the full tree
+        parent2 = getRootHeap()->findAllHeap(ptr);
+#else
         parent2 = getRootHeap()->find(ptr);
-        if (!parent2)
+#endif
+        if (!parent2) {
             return NULL;
+        }
     } else {
         parent2 = parent;
     }
@@ -136,6 +176,15 @@ JKRExpHeap* JKRExpHeap::create(void* ptr, u32 size, JKRHeap* parent, bool errorF
 }
 
 void JKRExpHeap::do_destroy() {
+#if TARGET_PC
+    if (mVmemBase) {
+        void*  vmemBase     = mVmemBase;
+        size_t vmemCapacity = mVmemCapacity;
+        this->~JKRExpHeap();
+        dusk::vmem_arena_free(vmemBase, vmemCapacity);
+        return;
+    }
+#endif
     if (!field_0x6e) {
         JKRHeap* heap = getParent();
         if (heap) {
@@ -163,6 +212,11 @@ JKRExpHeap::JKRExpHeap(void* data, u32 size, JKRHeap* parent, bool errorFlag)
     mHeadFreeList->initiate(NULL, NULL, size - sizeof(CMemBlock), 0, 0);
     mHeadUsedList = NULL;
     mTailUsedList = NULL;
+#if TARGET_PC
+    mVmemBase      = nullptr;
+    mVmemCapacity  = 0;
+    mVmemCommitted = 0;
+#endif
 }
 
 JKRExpHeap::~JKRExpHeap() {
@@ -214,6 +268,24 @@ void* JKRExpHeap::do_alloc(u32 size, int alignment) {
 #endif
 
 #if TARGET_PC
+    if (!ptr && mVmemBase) {
+        // Heap is full, commit the next chunk of reserved VM and retry
+        if (growHeap(size)) {
+            if (alignment >= 0) {
+                if (alignment <= 4) {
+                    ptr = allocFromHead(size);
+                } else {
+                    ptr = allocFromHead(size, alignment);
+                }
+            } else {
+                if (-alignment <= 4) {
+                    ptr = allocFromTail(size);
+                } else {
+                    ptr = allocFromTail(size, -alignment);
+                }
+            }
+        }
+    }
     if (!ptr) {
         // Allocation failed.
         OSReport_Error(
@@ -490,6 +562,49 @@ void JKRExpHeap::do_free(void* ptr) {
 static void dummy() {
     OS_REPORT("newSize > 0");
 }
+
+#if TARGET_PC
+bool JKRExpHeap::growHeap(u32 needed) {
+    // Determine how much to commit
+    // Always grow by at least JKR_HEAP_GROW_CHUNK
+    const size_t pageSize = dusk::vmem_page_size();
+    size_t wantBytes  = (size_t)needed + sizeof(CMemBlock);
+    size_t growAmount = std::max(wantBytes, JKR_HEAP_GROW_CHUNK);
+    growAmount = ALIGN_NEXT(growAmount, pageSize);
+
+    size_t remaining = mVmemCapacity - mVmemCommitted;
+    if (growAmount > remaining) {
+        // Clamp to whatever reservation is left
+        growAmount = ALIGN_PREV(remaining, pageSize);
+        if (growAmount < wantBytes) {
+            return false;
+        }
+    }
+
+    void* commitBase = (u8*)mVmemBase + mVmemCommitted;
+    if (!dusk::vmem_commit(commitBase, growAmount)) {
+        return false;
+    }
+
+    // Splice the new committed region into the free list as a single block at mEnd
+    CMemBlock* newBlock = (CMemBlock*)mEnd;
+    newBlock->size  = (u32)(growAmount - sizeof(CMemBlock));
+    newBlock->mFlags = 0;
+
+    mEnd   = (u8*)mEnd + growAmount;
+    mSize += (u32)growAmount;
+    mVmemCommitted += growAmount;
+
+    recycleFreeBlock(newBlock);
+
+    DuskLog.debug("[JKRExpHeap] '{}' grew by {} MB (committed: {} MB / reserved: {} MB)\n",
+             getName(),
+             growAmount        / (1024 * 1024),
+             mVmemCommitted    / (1024 * 1024),
+             mVmemCapacity     / (1024 * 1024));
+    return true;
+}
+#endif
 
 void JKRExpHeap::do_freeAll() {
     lock();

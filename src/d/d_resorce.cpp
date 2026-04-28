@@ -36,15 +36,27 @@ dRes_info_c::dRes_info_c() {
 
 dRes_info_c::~dRes_info_c() {
     if (mDMCommand != NULL) {
-        mDMCommand->destroy();
+#if TARGET_PC
+        if (JKRHeap::findFromRoot(mDMCommand) != nullptr) {
+#endif
+            mDMCommand->destroy();
+#if TARGET_PC
+        }
+#endif
         mDMCommand = NULL;
     } else if (mArchive != NULL) {
-        deleteArchiveRes();
-        if (mDataHeap != NULL) {
-            mDoExt_destroySolidHeap(mDataHeap);
-            mDataHeap = NULL;
-            mArchive->unmount();
+#if TARGET_PC
+        if (JKRHeap::findFromRoot(mArchive) != nullptr) {
+#endif
+            deleteArchiveRes();
+            if (mDataHeap != NULL) {
+                mDoExt_destroySolidHeap(mDataHeap);
+                mDataHeap = NULL;
+                mArchive->unmount();
+            }
+#if TARGET_PC
         }
+#endif
         mRes = NULL;
         mArchive = NULL;
     }

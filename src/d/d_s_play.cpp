@@ -39,10 +39,6 @@
 #include "JSystem/JKernel/JKRAram.h"
 #include "JSystem/JKernel/JKRAramArchive.h"
 
-#if TARGET_PC
-#include "dusk/memory.h"
-#endif
-
 #if DEBUG
 #include "d/d_s_menu.h"
 #include "d/d_debug_pad.h"
@@ -1424,7 +1420,7 @@ static int phase_4(dScnPly_c* i_this) {
     dComIfGd_setViewport(NULL);
     dComIfGd_setView(NULL);
 
-    JKRExpHeap* heap = fopMsgM_createExpHeap(HEAP_SIZE(0xBB800, 0x177000), NULL);
+    JKRExpHeap* heap = fopMsgM_createExpHeap(0xBB800, NULL);
 #if TARGET_PC
     heap->setName("Scene2DHeap");
 #endif
@@ -1432,7 +1428,7 @@ static int phase_4(dScnPly_c* i_this) {
     JUT_ASSERT(2704, heap != NULL);
     dComIfGp_setExpHeap2D(heap);
 
-    JKRExpHeap* heap2 = fopMsgM_createExpHeap(HEAP_SIZE(0xA800, 0x15000), NULL);
+    JKRExpHeap* heap2 = fopMsgM_createExpHeap(0xA800, NULL);
 #if TARGET_PC
     heap2->setName("SceneMsgHeap");
 #endif

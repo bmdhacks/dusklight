@@ -61,6 +61,15 @@ public:
     static JKRSolidHeap* create(u32, JKRHeap*, bool);
 
     static void* getState_(TState* state) { return getState_buf_(state); }
+
+#if TARGET_PC
+    void*  mVmemBase;      // base of VM reservation
+    size_t mVmemCapacity;  // total reserved bytes
+    size_t mVmemCommitted; // page-aligned committed bytes so far
+
+    // Commit more pages and extend the free region
+    bool growHeap(u32 needed);
+#endif
 };
 
 inline JKRSolidHeap* JKRCreateSolidHeap(u32 param_0, JKRHeap* heap, bool param_2) {

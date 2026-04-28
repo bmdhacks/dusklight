@@ -6,6 +6,7 @@
 #include "JSystem/JFramework/JFWSystem.h"
 #include "JSystem/JKernel/JKRExpHeap.h"
 #include "JSystem/JKernel/JKRHeap.h"
+#include "JSystem/JKernel/JKRSolidHeap.h"
 #include "absl/container/flat_hash_map.h"
 #include "imgui.h"
 
@@ -178,11 +179,11 @@ namespace dusk {
     }
 
     void ShowHeapDetailed(JKRHeap* heap, OpenHeapData& data, bool& open) {
+        const char* heapName = data.Safe ? heap->getName() : "INVALID";
         char title[128];
-        const char* name = data.Safe ? heap->getName() : "INVALID";
-        snprintf(title, sizeof(title), "Heap %s##%p", heap->getName(), static_cast<const void*>(heap));
+        snprintf(title, sizeof(title), "Heap %s##%p", heapName, static_cast<const void*>(heap));
 
-        if (!ImGui::Begin(name, &open)) {
+        if (!ImGui::Begin(title, &open)) {
             ImGui::End();
             return;
         }
@@ -199,6 +200,30 @@ namespace dusk {
         const auto size = BytesToString(heap->getSize());
         const auto freeSize = BytesToString(heap->getFreeSize());
         ImGui::Text("Size: %08X (%s), free: %08X (%s)", heap->getSize(), size.c_str(), heap->getFreeSize(), freeSize.c_str());
+
+        {
+            void*  vmemBase      = nullptr;
+            size_t vmemCapacity  = 0;
+            size_t vmemCommitted = 0;
+            if (heap->getHeapType() == 'EXPH') {
+                auto* h = static_cast<JKRExpHeap*>(heap);
+                vmemBase = h->mVmemBase; vmemCapacity = h->mVmemCapacity; vmemCommitted = h->mVmemCommitted;
+            } else if (heap->getHeapType() == 'SLID') {
+                auto* h = static_cast<JKRSolidHeap*>(heap);
+                vmemBase = h->mVmemBase; vmemCapacity = h->mVmemCapacity; vmemCommitted = h->mVmemCommitted;
+            }
+            if (vmemBase) {
+                ImGui::SeparatorText("Virtual Memory");
+                ImGui::Text("Base: %p", vmemBase);
+                const auto committedStr = BytesToString(vmemCommitted);
+                const auto capacityStr  = BytesToString(vmemCapacity);
+                ImGui::Text("Committed: %s / %s reserved", committedStr.c_str(), capacityStr.c_str());
+                float pct = vmemCapacity > 0 ? (float)vmemCommitted / (float)vmemCapacity : 0.0f;
+                char overlayBuf[32];
+                snprintf(overlayBuf, sizeof(overlayBuf), "%.1f%%", pct * 100.0f);
+                ImGui::ProgressBar(pct, ImVec2(-1.0f, 0.0f), overlayBuf);
+            }
+        }
 
         if (ImGui::Button("Check")) {
             data.HeapCheckFailed = !heap->check();

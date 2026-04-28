@@ -10,7 +10,6 @@
 #include "d/d_meter2_info.h"
 #include "d/d_s_name.h"
 #include "dusk/imgui/ImGuiConsole.hpp"
-#include "dusk/memory.h"
 #include "dusk/settings.h"
 #include "f_op/f_op_overlap_mng.h"
 #include "f_op/f_op_scene_mng.h"
@@ -77,7 +76,7 @@ static s32 resLoad(request_of_phase_process_class* i_phase, char* i_resName) {
 s32 dScnName_c::create() {
     int phase_state = resLoad(&phase, "fileSel");
     if (phase_state == cPhs_COMPLEATE_e) {
-        mHeap = JKRCreateExpHeap(HEAP_SIZE(0x180000, 0x1C0000), mDoExt_getGameHeap(), false);
+        mHeap = JKRCreateExpHeap(0x180000, mDoExt_getGameHeap(), false);
         JUT_ASSERT(289, mHeap != NULL);
         JKRHEAP_NAME(mHeap, "File select");
 

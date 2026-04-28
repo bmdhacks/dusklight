@@ -71,6 +71,7 @@
 #include "dusk/config.hpp"
 #include "dusk/imgui/ImGuiConsole.hpp"
 #include "dusk/settings.h"
+#include "dusk/vmem.h"
 #include "dusk/version.hpp"
 #include "dusk/discord_presence.hpp"
 #include "tracy/Tracy.hpp"
@@ -551,12 +552,19 @@ int game_main(int argc, char* argv[]) {
         config.desiredBackend = ResolveDesiredBackend(parsed_arg_options);
         config.logCallback = &aurora_log_callback;
         config.logLevel = startupLogLevel;
-        config.mem1Size = 256 * 1024 * 1024;
+        // Child heaps use independent vmem reservations on PC
+        config.mem1Size = DUSK_IF_ELSE(16, 256) * 1024 * 1024;
         config.mem2Size = 24 * 1024 * 1024;
         config.allowJoystickBackgroundEvents = true;
         config.imGuiInitCallback = &aurora_imgui_init_callback;
         config.allowTextureReplacements = true;
         config.allowTextureDumps = false;
+
+        #if TARGET_PC
+        dusk::vmem_arena_init();
+        #endif
+
+        
         auroraInfo = aurora_initialize(argc, argv, &config);
     }
 

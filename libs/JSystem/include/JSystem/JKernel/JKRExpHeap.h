@@ -127,6 +127,13 @@ public:
     [[nodiscard]] const CMemBlock* getFreeHead() const { return mHeadFreeList; }
     [[nodiscard]] CMemBlock* getUsedHead() { return mHeadUsedList; }
     [[nodiscard]] const CMemBlock* getUsedHead() const { return mHeadUsedList; }
+
+    void*  mVmemBase;      // base of VM reservation
+    size_t mVmemCapacity;  // total reserved bytes
+    size_t mVmemCommitted; // page-aligned committed bytes so far
+
+    // Commit more pages and splice them into the free list
+    bool growHeap(u32 needed);
 #endif
 };
 

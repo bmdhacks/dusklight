@@ -21,7 +21,6 @@
 #include "d/d_msg_object.h"
 #include "d/d_msg_scrn_explain.h"
 #include "d/d_stage.h"
-#include "dusk/memory.h"
 #include "f_op/f_op_msg_mng.h"
 
 static dMf_HIO_c g_fmHIO;
@@ -190,7 +189,7 @@ dMenu_Fmap_c::dMenu_Fmap_c(JKRExpHeap* i_heap, STControl* i_stick, CSTControl* i
         field_0x148[i] = 0.0f;
     }
 
-    mpTalkHeap = JKRCreateExpHeap(HEAP_SIZE(0x32000, 0x40000), mpHeap, false);
+    mpTalkHeap = JKRCreateExpHeap(0x32000, mpHeap, false);
     JUT_ASSERT(359, mpTalkHeap != NULL);
     JKRHEAP_NAME(mpTalkHeap, "dMenu_Fmap_c::mpTalkHeap");
     field_0x200 = 0;
