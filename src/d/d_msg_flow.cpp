@@ -635,6 +635,17 @@ int dMsgFlow_c::messageNodeProc(fopAc_ac_c* i_speaker_p, fopAc_ac_c** i_talkPart
 int dMsgFlow_c::branchNodeProc(fopAc_ac_c* i_speaker_p, fopAc_ac_c** i_talkPartners) {
     mesg_flow_node_branch* node = NULL;
     node = &mFlowNodeTBL[mNodeIdx].branch;
+
+#if TARGET_PC
+    // Overwrite this node if we have a patch for it
+    if (randomizer_IsActive()) {
+        u32 key = (dMsgObject_getGroupID() << 16) | mNodeIdx;
+        if (randomizer_GetContext().mFlowPatches.contains(key)) {
+            node = reinterpret_cast<mesg_flow_node_branch*>(&randomizer_GetContext().mFlowPatches[key]);
+        }
+    }
+#endif
+
     u16 proc_status = (this->*mQueryList[node->query_idx])(node, i_speaker_p, 1);
 
     u16 var_r28 = node->next_node_idx + proc_status;
@@ -756,7 +767,7 @@ int dMsgFlow_c::getParam(u8* params) {
     return *(BE(int)*)params;
 }
 
-queryFunc dMsgFlow_c::mQueryList[53] = {
+queryFunc dMsgFlow_c::mQueryList[DUSK_IF_ELSE(54, 53)] = {
     &dMsgFlow_c::query005, &dMsgFlow_c::query001, &dMsgFlow_c::query002, &dMsgFlow_c::query003,
     &dMsgFlow_c::query006, &dMsgFlow_c::query007, &dMsgFlow_c::query004, &dMsgFlow_c::query008,
     &dMsgFlow_c::query009, &dMsgFlow_c::query010, &dMsgFlow_c::query011, &dMsgFlow_c::query012,
@@ -771,6 +782,9 @@ queryFunc dMsgFlow_c::mQueryList[53] = {
     &dMsgFlow_c::query045, &dMsgFlow_c::query046, &dMsgFlow_c::query047, &dMsgFlow_c::query048,
     &dMsgFlow_c::query049, &dMsgFlow_c::query050, &dMsgFlow_c::query051, &dMsgFlow_c::query052,
     &dMsgFlow_c::query053,
+#if TARGET_PC
+    &dMsgFlow_c::query054,
+#endif
 };
 
 #if DEBUG
@@ -1760,6 +1774,20 @@ u16 dMsgFlow_c::query053(mesg_flow_node_branch* i_flowNode_p, fopAc_ac_c* i_spea
         // "Wearing Iron Boots Check"
         OS_REPORT("\x1B[44;33m:アイアンブーツ履いているかチェック　　\x1B[m|:");
         OS_REPORT("flow:%d, ret:%d\n", mFlow, ret);
+    }
+
+    return ret;
+}
+
+// Like query 1, but instead returns 1 if true, and 0 if false
+u16 dMsgFlow_c::query054(mesg_flow_node_branch* i_flowNode_p, fopAc_ac_c* i_speaker_p, int param_2) {
+    const u16 prm0 = i_flowNode_p->param;
+    u16 ret = dComIfGs_isEventBit(dSv_event_flag_c::saveBitLabels[prm0]);
+
+    if (param_2 != 0) {
+        // "Flag Check"
+        OS_REPORT("\x1B[44;33mフラグチェック　　　　　　　　　　　\x1B[m|:");
+        OS_REPORT("flow:%d, ret:%d, prm0:%d\n", mFlow, ret, prm0);
     }
 
     return ret;
