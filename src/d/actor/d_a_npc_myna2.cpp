@@ -1196,7 +1196,7 @@ int daNpc_myna2_c::ECut_gameGoalSuccess(int i_staffId) {
             int itemNo = 0;
             if (mFlow.getEventId(&itemNo) == 1) {
 #if TARGET_PC
-                // If plumm tries giving us the heart piece, 
+                // If plumm tries giving us the heart piece, give the randomized item instead
                 if (randomizer_IsActive() && itemNo == dItemNo_KAKERA_HEART_e) {
                     itemNo = verifyProgressiveItem(randomizer_getItemAtLocation("Plumm Fruit Balloon Minigame"));
                 }
