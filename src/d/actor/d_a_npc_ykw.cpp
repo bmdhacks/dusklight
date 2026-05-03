@@ -20,6 +20,8 @@
 #include "m_Do/m_Do_ext.h"
 #include <cstring>
 
+#include "dusk/randomizer/game/verify_item_functions.h"
+
 #if DEBUG
 class daNpc_ykW_HIO_c : public mDoHIO_entry_c {
 public:
@@ -2214,6 +2216,11 @@ int daNpc_ykW_c::cutEndSnowboardRace(int param_0) {
             switch (eventId) {
             case 1:
                 if (mItemPartnerId == fpcM_ERROR_PROCESS_ID_e) {
+#if TARGET_PC
+                    if (randomizer_IsActive()) {
+                        itemId = verifyProgressiveItem(randomizer_getItemAtLocation("Snowboard Racing Prize"));
+                    }
+#endif
                     mItemPartnerId = fopAcM_createItemForPresentDemo(&current.pos, itemId, 0,
                                                             -1, -1, 0, 0);
                 }
