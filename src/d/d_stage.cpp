@@ -1631,6 +1631,33 @@ static void dStage_actorCreate(stage_actor_data_class* i_actorData, fopAcM_prm_c
     }
 }
 
+#if TARGET_PC
+// Custom function to spawn additional actors in randomizer
+static void dStage_createActorAdditions(dStage_dt_c* i_stage) {
+    if (randomizer_IsActive()) {
+        u32 stageRoomLayer = getActorPatchesCurrentStageKey(i_stage->getRoomNo());
+        const auto& actorAdditions = randomizer_GetContext().mActorAdditions;
+        for (const auto& [type, newActors] : actorAdditions) {
+            if (newActors.contains(stageRoomLayer)) {
+                for (const auto& actorData : newActors.at(stageRoomLayer)) {
+                    stage_actor_data_class actor{};
+                    std::memcpy(&actor, actorData.data(), actorData.size());
+                    actor.base.setID = 0xFFFF;
+                    // Code below copied from base game
+                    fopAcM_prm_class* appen = fopAcM_CreateAppend();
+
+                    if (appen != NULL) {
+                        appen->base = actor.base;
+                        appen->room_no = (int)i_stage->getRoomNo();
+                        dStage_actorCreate(&actor, appen);
+                    }
+                }
+            }
+        }
+    }
+}
+#endif
+
 static int dStage_cameraCreate(stage_camera2_data_class* i_cameraData, int i_cameraIdx,
                                int param_2) {
     s16 procname = fpcNm_CAMERA_e;
@@ -1990,31 +2017,6 @@ static int dStage_actorCommonLayerInit(dStage_dt_c* i_stage, void* i_data, int e
         }
         actor_data++;
     }
-
-#if TARGET_PC
-    // For randomizer, add in our custom actors
-    if (randomizer_IsActive()) {
-        u32 type = static_cast<dStage_nodeHeader*>(i_data)->m_tag;
-        u32 stageRoomLayer = getActorPatchesCurrentStageKey(i_stage->getRoomNo());
-        const auto& actorAdditions = randomizer_GetContext().mActorAdditions;
-        if (actorAdditions.contains(type) && actorAdditions.at(type).contains(stageRoomLayer)) {
-            auto& newActors = actorAdditions.at(type).at(stageRoomLayer);
-            for (const auto& actorData : newActors) {
-                stage_actor_data_class actor{};
-                std::memcpy(&actor, actorData.data(), actorData.size());
-                actor.base.setID = 0xFFFF;
-                // Code copied from base game for loop above
-                fopAcM_prm_class* appen = fopAcM_CreateAppend();
-
-                if (appen != NULL) {
-                    appen->base = actor.base;
-                    appen->room_no = (int)i_stage->getRoomNo();
-                    dStage_actorCreate(&actor, appen);
-                }
-            }
-        }
-    }
-#endif
 
     return 1;
 }
@@ -2750,6 +2752,12 @@ void dStage_dt_c_roomReLoader(void* i_data, dStage_dt_c* i_stage, int param_2) {
     };
 
     dStage_dt_c_decode(i_data, i_stage, l_funcTable, ARRAY_SIZEU(l_funcTable));
+#if TARGET_PC
+    // Spawn our custom actors in randomizer
+    if (randomizer_IsActive()) {
+        dStage_createActorAdditions(i_stage);
+    }
+#endif
     layerActorLoader(i_data, i_stage, param_2);
 }
 
