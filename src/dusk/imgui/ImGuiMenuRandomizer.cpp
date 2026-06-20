@@ -20,6 +20,8 @@
 #include <numeric>
 #include <ranges>
 
+#include "dusk/archipelago/archipelago_context.hpp"
+
 
 namespace dusk {
 
@@ -254,8 +256,16 @@ namespace dusk {
             auto trackerHash = trackerRando->GetConfig().GetHash(false);
             // If no hash, or seeds switched, try to create tracker world from currently active seed
             if (trackerHash.empty() || (trackerHash != contextHash && !contextHash.empty())) {
-                *trackerRando = randomizer::Randomizer(ui::GetRandomizerPath());
-                trackerRando->GenerateTrackerWorld();
+                if (archi::ArchipelagoContext::IsConnected()) {
+                    std::filesystem::path workingDir;
+                    archi::ArchipelagoContext::GetSeedDirectoryPath(workingDir);
+
+                    *trackerRando = randomizer::Randomizer(workingDir);
+                    trackerRando->GenerateTrackerWorld(false);
+                }else {
+                    *trackerRando = randomizer::Randomizer(ui::GetRandomizerPath());
+                    trackerRando->GenerateTrackerWorld();
+                }
             }
 
             if (randomizer_IsActive()) {

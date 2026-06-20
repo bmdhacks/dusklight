@@ -553,6 +553,7 @@ void execItemGet(u8 i_itemNo) {
     if (randomizer_IsActive()) {
         i_itemNo = verifyProgressiveItem(i_itemNo);
         g_randomizerState.mUpdateTracker = true;
+        dusk::archi::ArchipelagoContext::SetNeedUpdateLocations(true);
     }
 
 #endif
@@ -2184,9 +2185,7 @@ void item_func_MIRROR_PIECE_1() {
 }
 
 void item_func_ARCHIPELAGO_ITEM() {
-    if (randomizer_IsActive()) {
-        dusk::archi::ArchipelagoContext::UpdateCheckedLocations();
-    }
+
 }
 
 #endif

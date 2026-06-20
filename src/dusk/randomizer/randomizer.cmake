@@ -55,8 +55,8 @@ FetchContent_Declare(
 message(STATUS "randomizer: Fetching APCpp")
 FetchContent_Declare(
         APCpp
-        GIT_REPOSITORY https://github.com/N00byKing/APCpp.git
-        GIT_TAG        9194179
+        GIT_REPOSITORY https://github.com/CraftyBoss/APCpp.git
+        GIT_TAG        5091686
 )
 
 FetchContent_MakeAvailable(yaml-cpp base64pp battery-embed APCpp)

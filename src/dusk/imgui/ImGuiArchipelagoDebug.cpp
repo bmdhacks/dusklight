@@ -6,6 +6,7 @@
 #include "aurora/lib/window.hpp"
 #include "dusk/file_select.hpp"
 #include "dusk/archipelago/archipelago_context.hpp"
+#include "dusk/ui/rando_seed_generation.hpp"
 
 namespace dusk {
 
@@ -69,12 +70,11 @@ void ImGuiArchipelagoDebug::drawWindow() {
         OpenApFilePicker();
     }
 
-    if (ImGui::Button("Test Config Convert")) {
-        randomizer::seedgen::config::Config config;
-        archi::ArchipelagoContext::GenerateConfigFromAP(config);
-    }
-
     if (archi::ArchipelagoContext::IsConnected()) {
+        if (ImGui::Button("Test Create World Data")) {
+            archi::ArchipelagoContext::GenerateLocalWorldData();
+        }
+
         if (ImGui::Button("Disconnect")) {
             archi::ArchipelagoContext::DisconnectFromServer();
         }

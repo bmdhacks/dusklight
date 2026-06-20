@@ -15,6 +15,7 @@
 #include <iostream>
 
 #include "dusk/logging.h"
+#include "dusk/archipelago/archipelago_context.hpp"
 #include "dusk/ui/rando_config.hpp"
 #include "dusk/randomizer/game/randomizer_context.hpp"
 
@@ -45,18 +46,23 @@ namespace randomizer
         return std::nullopt;
     }
 
-    void Randomizer::GenerateTrackerWorld() {
+    void Randomizer::GenerateTrackerWorld(bool useAntiSpoilerLog) {
         auto contextHash = randomizer_GetContext().mHash;
 
-        if (contextHash.empty()) {
-            return;
+        if (!useAntiSpoilerLog) {
+            this->_config.LoadFromFile(GetConfigPath(), GetPrefPath());
+            this->_config.SetHash(contextHash);
+        }else {
+            if (contextHash.empty()) {
+                return;
+            }
+
+            std::filesystem::path seedSettings = dusk::ui::GetRandomizerSeedsPath() /
+                contextHash / (contextHash + " Anti-Spoiler Log.txt");
+
+            this->_config.LoadFromFile(seedSettings, GetPrefPath());
+            this->_config.SetHash(contextHash);
         }
-
-        std::filesystem::path seedSettings = dusk::ui::GetRandomizerSeedsPath() /
-            contextHash / (contextHash + " Anti-Spoiler Log.txt");
-
-        this->_config.LoadFromFile(seedSettings, GetPrefPath());
-        this->_config.SetHash(contextHash);
 
         std::unique_ptr<logic::world::World> world = std::make_unique<logic::world::World>(1, this);
         world->SetSettings(this->_config.GetSettingsList().front());

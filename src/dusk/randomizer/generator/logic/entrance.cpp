@@ -232,7 +232,7 @@ namespace randomizer::logic::entrance
         return this->_decoupled;
     }
 
-    void Entrance::SetDisbled(const bool& disabled)
+    void Entrance::SetDisabled(const bool& disabled)
     {
         this->_disabled = disabled;
         LOG_TO_DEBUG(this->GetOriginalName() + " disabled status set to " + (disabled ? "True" : "False"));

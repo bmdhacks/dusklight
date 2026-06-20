@@ -80,7 +80,9 @@ public:
     } mStartLocation;
 
     std::optional<std::string> WriteToFile();
+    std::optional<std::string> WriteToFile(const fspath& path);;
     std::optional<std::string> LoadFromHash(const std::string& hash);
+    std::optional<std::string> LoadFromPath(const fspath& path);
     std::filesystem::path GetSeedDataPath() const;
 
     enum Settings {
@@ -266,5 +268,10 @@ u32 getStageObjCRC32(u8* data, size_t size);
  * Returns true if generation was successful, false otherwise.
  */
 bool GenerateAndWriteSeed(std::string& generationStatusMsg);
+
+/*
+ * Creates RandomizerContext that contains all needed data for the seed.
+ */
+RandomizerContext WriteSeedData(randomizer::logic::world::World* world);
 
 #endif //DUSK_RANDOMIZER_CONTEXT_HPP

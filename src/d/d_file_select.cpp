@@ -23,6 +23,8 @@
 #include "m_Do/m_Do_graphic.h"
 #include <cstring>
 
+#include "dusk/archipelago/archipelago_context.hpp"
+
 #if TARGET_PC
 #include "dusk/config.hpp"
 #include "dusk/menu_pointer.h"
@@ -1037,18 +1039,23 @@ void dFile_select_c::dataSelectStart() {
         makeRecInfo(mSelectNum);
 
 #if TARGET_PC
-        // Load the randomizer seed if one is tied to this file
-        auto curFileSeedHash = dusk::getSettings().randomizer.seedHashes.at(mSelectNum).getValue();
-        // If this is a vanilla file, clear rando data structures
-        if (curFileSeedHash.empty()) {
-            g_randomizerState = RandomizerState();
-            randomizer_GetContext() = RandomizerContext();
-        }
-        // Reset randomizer state if we're switching to a different file
-        else if (curFileSeedHash != randomizer_GetContext().mHash || g_randomizerState.mFileNum != mSelectNum) {
-            g_randomizerState = RandomizerState();
-            randomizer_GetContext() = RandomizerContext();
-            randomizer_GetContext().LoadFromHash(curFileSeedHash);
+        // TODO: not this please D:
+        if (dusk::archi::ArchipelagoContext::IsConnected()) {
+            dusk::archi::ArchipelagoContext::GenerateLocalWorldData();
+        }else {
+            // Load the randomizer seed if one is tied to this file
+            auto curFileSeedHash = dusk::getSettings().randomizer.seedHashes.at(mSelectNum).getValue();
+            // If this is a vanilla file, clear rando data structures
+            if (curFileSeedHash.empty()) {
+                g_randomizerState = RandomizerState();
+                randomizer_GetContext() = RandomizerContext();
+            }
+            // Reset randomizer state if we're switching to a different file
+            else if (curFileSeedHash != randomizer_GetContext().mHash || g_randomizerState.mFileNum != mSelectNum) {
+                g_randomizerState = RandomizerState();
+                randomizer_GetContext() = RandomizerContext();
+                randomizer_GetContext().LoadFromHash(curFileSeedHash);
+            }
         }
 #endif
 
@@ -1400,6 +1407,15 @@ void dFile_select_c::selectDataPlayTypeMove() {
                     mDoAud_seStartMenu(Z2SE_SY_CURSOR_OK);
                     modal.hide(true);
                     dusk::ui::push_document(std::make_unique<dusk::ui::FileSelectRandomizerWindow>(this));
+                }},
+                // If Archipelago is selected, open archipelago settings window
+                dusk::ui::ModalAction{
+                .label = "Archipelago",
+                .onPressed = [this](dusk::ui::Modal& modal) {
+                    mDusk.mBackToFileSelect = false;
+                    mDoAud_seStartMenu(Z2SE_SY_CURSOR_OK);
+                    modal.hide(true);
+                    dusk::archi::ArchipelagoContext::GenerateLocalWorldData();
                 }},
             },
             // If we dismiss this modal, go back to file selection

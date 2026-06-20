@@ -1055,9 +1055,10 @@
 #  Importance: Junk
 #  Id: 0xDB
 
-#- Name: Unused
-#  Importance: Junk
-#  Id: 0xDC
+- Name: Archipelago Item
+  Importance: Minor
+  Id: 0xDC
+  APItemId: -1
 
 #- Name: Unused
 #  Importance: Junk

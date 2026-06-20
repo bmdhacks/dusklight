@@ -102,7 +102,7 @@ namespace randomizer::logic::entrance
         bool IsShuffled() const;
         void SetDecoupled(const bool& decoupled);
         bool IsDecoupled() const;
-        void SetDisbled(const bool& disabled);
+        void SetDisabled(const bool& disabled);
         bool IsDisabled() const;
         void SetPrimary(const bool& primary);
         bool IsPrimary() const;

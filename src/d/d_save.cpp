@@ -2068,6 +2068,32 @@ void dSv_info_c::onItem(int i_no, int i_roomNo) {
     }
 }
 
+#if TARGET_PC
+void dSv_info_c::offItem(int i_no, int i_roomNo) {
+    JUT_ASSERT(4398, (0 <= i_no && i_no < (MEMORY_ITEM+ DAN_ITEM+ ZONE_ITEM+ ONEZONE_ITEM)) || i_no == -1 || i_no == 255);
+
+    if (i_no == -1 || i_no == 255) {
+        return;
+    }
+
+    if (i_no < MEMORY_ITEM) {
+        mDan.offItem(i_no);
+    } else if (i_no < (MEMORY_ITEM + DAN_ITEM)) {
+        mMemory.getBit().offItem(i_no - MEMORY_ITEM);
+    } else {
+        JUT_ASSERT(4414, 0 <= i_roomNo && i_roomNo < 64);
+        int zoneNo = dComIfGp_roomControl_getZoneNo(i_roomNo);
+        JUT_ASSERT(4416, 0 <= zoneNo && zoneNo < ZONE_MAX);
+
+        if (i_no < (MEMORY_ITEM + DAN_ITEM + ZONE_ITEM)) {
+            mZone[zoneNo].getBit().offItem(i_no - (MEMORY_ITEM + DAN_ITEM));
+        } else {
+            mZone[zoneNo].getBit().offOneItem(i_no - (MEMORY_ITEM + DAN_ITEM + ZONE_ITEM));
+        }
+    }
+}
+#endif
+
 BOOL dSv_info_c::isItem(int i_no, int i_roomNo) const {
     JUT_ASSERT(4488, (0 <= i_no && i_no < (MEMORY_ITEM+ DAN_ITEM+ ZONE_ITEM+ ONEZONE_ITEM)) || i_no == -1 || i_no == 255);
 

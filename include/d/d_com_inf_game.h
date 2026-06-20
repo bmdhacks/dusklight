@@ -1128,6 +1128,15 @@ void dComIfGs_setWarpItemData(char const* stage, cXyz pos, s16 angle, s8 roomNo,
                               u8 param_5);
 BOOL dComIfGs_isStageSwitch(int i_stageNo, int i_no);
 BOOL dComIfGs_isStageTbox(int i_stageNo, int i_no);
+#if TARGET_PC
+void dComIfGs_onStageTbox(int i_stageNo, int i_no);
+void dComIfGs_offStageTbox(int i_stageNo, int i_no);
+
+void dComIfGs_onStageItem(int i_stageNo, int i_no);
+void dComIfGs_offStageItem(int i_stageNo, int i_no);
+
+#endif
+
 void dComIfGs_onStageSwitch(int i_stageNo, int i_no);
 void dComIfGs_offStageSwitch(int i_stageNo, int i_no);
 BOOL dComIfGs_isStageSwitch(int i_stageNo, int i_no);
@@ -1990,6 +1999,23 @@ inline void dComIfGs_onRegionFlag(int i_stageNo, int i_no) {
     const int shift = i_no % 8;
     regionFlags[offset] |= (0x80 >> shift);
 }
+
+inline void dComIfGs_onSaveTbox(int i_stageNo, int i_no) {
+    g_dComIfG_gameInfo.info.getSavedata().getSave(i_stageNo).getBit().onTbox(i_no);
+}
+
+inline void dComIfGs_offSaveTbox(int i_stageNo, int i_no) {
+    g_dComIfG_gameInfo.info.getSavedata().getSave(i_stageNo).getBit().offTbox(i_no);
+}
+
+inline void dComIfGs_onSaveItem(int i_no) {
+    g_dComIfG_gameInfo.info.getMemory().getBit().onItem(i_no);
+}
+
+inline void dComIfGs_offSaveItem(int i_no) {
+    g_dComIfG_gameInfo.info.getMemory().getBit().offItem(i_no);
+}
+
 #endif
 
 inline BOOL dComIfGs_isSaveTbox(int i_stageNo, int i_no) {
@@ -2455,6 +2481,12 @@ inline void dComIfGs_revSwitch(int i_no, int i_roomNo) {
 inline void dComIfGs_onItem(int i_bitNo, int i_roomNo) {
     g_dComIfG_gameInfo.info.onItem(i_bitNo, i_roomNo);
 }
+
+#if TARGET_PC
+inline void dComIfGs_offItem(int i_bitNo, int i_roomNo) {
+    g_dComIfG_gameInfo.info.offItem(i_bitNo, i_roomNo);
+}
+#endif
 
 inline bool dComIfGs_isItem(int i_bitNo, int i_roomNo) {
     return g_dComIfG_gameInfo.info.isItem(i_bitNo, i_roomNo);

@@ -993,6 +993,9 @@ public:
     BOOL isSwitch(int i_no, int i_roomNo) const;
     BOOL revSwitch(int i_no, int i_roomNo);
     void onItem(int i_no, int i_roomNo);
+#if TARGET_PC
+    void offItem(int i_no, int i_roomNo);
+#endif
     BOOL isItem(int i_no, int i_roomNo) const;
     void onActor(int i_no, int i_roomNo);
     void offActor(int i_no, int i_roomNo);

@@ -2093,6 +2093,41 @@ BOOL dComIfGs_isStageTbox(int i_stageNo, int i_no) {
     }
 }
 
+#if TARGET_PC
+void dComIfGs_onStageTbox(int i_stageNo, int i_no) {
+    if (dComIfGp_getStageStagInfo() && i_stageNo == dStage_stagInfo_GetSaveTbl(dComIfGp_getStageStagInfo())) {
+        dComIfGs_onTbox(i_no);
+    } else {
+        dComIfGs_onSaveTbox(i_stageNo, i_no);
+    }
+}
+void dComIfGs_offStageTbox(int i_stageNo, int i_no) {
+    if (dComIfGp_getStageStagInfo() && i_stageNo == dStage_stagInfo_GetSaveTbl(dComIfGp_getStageStagInfo())) {
+        dComIfGs_offTbox(i_no);
+    } else {
+        dComIfGs_offSaveTbox(i_stageNo, i_no);
+    }
+}
+
+void dComIfGs_onStageItem(int i_stageNo, int i_no) {
+    if (dComIfGp_getStageStagInfo() && i_stageNo == dStage_stagInfo_GetSaveTbl(dComIfGp_getStageStagInfo())) {
+        dComIfGs_onItem(i_no, -1);
+    } else {
+        dComIfGs_onSaveItem(i_no);
+    }
+}
+
+void dComIfGs_offStageItem(int i_stageNo, int i_no) {
+    if (dComIfGp_getStageStagInfo() && i_stageNo == dStage_stagInfo_GetSaveTbl(dComIfGp_getStageStagInfo())) {
+        // Need to subtract 0x80 (MEMORY_ITEM constant in d_save.cpp) because the above function does it
+        dComIfGs_offItem(i_stageNo, i_no - 0x80);
+    } else {
+        dComIfGs_offSaveItem(i_no);
+    }
+}
+#endif
+
+
 void dComIfGs_onStageSwitch(int i_stageNo, int i_no) {
 #if TARGET_PC
     // Avoid trying to get the save table if stag info is NULL
@@ -2107,7 +2142,12 @@ void dComIfGs_onStageSwitch(int i_stageNo, int i_no) {
 }
 
 void dComIfGs_offStageSwitch(int i_stageNo, int i_no) {
+#if TARGET_PC
+    // Avoid trying to get the save table if stag info is NULL
+    if (dComIfGp_getStageStagInfo() && i_stageNo == dStage_stagInfo_GetSaveTbl(dComIfGp_getStageStagInfo())) {
+#else
     if (i_stageNo == dStage_stagInfo_GetSaveTbl(dComIfGp_getStageStagInfo())) {
+#endif
         dComIfGs_offSwitch(i_no, -1);
     }
 

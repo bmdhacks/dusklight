@@ -131,7 +131,7 @@ namespace randomizer::logic::world
         item::Item* GetGameWinningItem() const;
         item_pool::ItemPool& GetItemPool();
         item_pool::ItemPool& GetStartingItemPool();
-        location::Location* GetLocation(const std::string& name);
+        location::Location* GetLocation(const std::string& name, const bool& ignoreError = false);
         location::LocationPool GetAllLocations(const bool& includeNonItemLocations = false);
         area::Area* GetArea(const std::string& name, const bool& createIfNotFound = false);
         area::Area* GetRootArea() const;

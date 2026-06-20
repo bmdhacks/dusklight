@@ -22,10 +22,14 @@
 #include "d/d_meter2_draw.h"
 #include "d/d_meter2_info.h"
 #include "d/d_msg_flow.h"
+#include "dusk/archipelago/archipelago_context.hpp"
 
 std::optional<std::string> RandomizerContext::WriteToFile() {
+    return WriteToFile(this->GetSeedDataPath());
+}
 
-    std::ofstream seedData(this->GetSeedDataPath());
+std::optional<std::string> RandomizerContext::WriteToFile(const fspath& path) {
+    std::ofstream seedData(path);
     if (!seedData.is_open()) {
         return "Could not open seed data file";
     }
@@ -137,7 +141,11 @@ std::optional<std::string> RandomizerContext::LoadFromHash(const std::string& ha
         return std::nullopt;
     }
 
-    auto in = LoadYAML(this->GetSeedDataPath());
+    return LoadFromPath(this->GetSeedDataPath());
+}
+
+std::optional<std::string> RandomizerContext::LoadFromPath(const fspath& path) {
+    auto in = LoadYAML(path);
 
     // Necessary settings
     for (const auto& settingNode : in["mSettings"] ) {
@@ -587,6 +595,8 @@ int RandomizerState::execute() {
         handleFoolishItem();
     }
 
+    dusk::archi::ArchipelagoContext::Execute();
+
     return 1;
 }
 
@@ -1001,6 +1011,11 @@ RandomizerContext WriteSeedData(randomizer::logic::world::World* world) {
 
     // Set data for all locations
     for (const auto& location : world->GetAllLocations()) {
+        // skip locations with nothing
+        if (location->GetCurrentItem()->GetID() == -1) {
+            continue;
+        }
+
         const auto& metaData = location->GetMetadata();
 
         // Chest Overrides

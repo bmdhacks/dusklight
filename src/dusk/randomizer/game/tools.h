@@ -26,6 +26,11 @@ int getTempleKeysFound(int saveId);
 randomizer::logic::item_pool::ItemPool getSaveItemPool(randomizer::logic::world::World* world);
 
 /*
+ * Updates locations relevant flag in save to whatever state is supplied.
+ */
+void setLocationCollected(randomizer::logic::location::Location* location, bool collect);
+
+/*
  * Finds locations relevant flag in save (using its metadata) and checks if it's been set.
  */
 bool isLocationObtained(randomizer::logic::location::Location* location);

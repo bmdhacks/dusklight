@@ -842,7 +842,7 @@ namespace randomizer::logic::world
             // Disable the dungeon's starting entrances
             for (auto& entrance : dungeon->GetStartingEntrances())
             {
-                entrance->SetDisbled(true);
+                entrance->SetDisabled(true);
             }
 
             // Run an accessibility search to see which locations inherently require accessing this dungeon
@@ -864,7 +864,7 @@ namespace randomizer::logic::world
             // Re-enable the dungeon's entrances
             for (auto& entrance : dungeon->GetStartingEntrances())
             {
-                entrance->SetDisbled(false);
+                entrance->SetDisabled(false);
             }
         }
     }
@@ -916,7 +916,7 @@ namespace randomizer::logic::world
             // Disable the dungeon's starting entrances
             for (auto& entrance : dungeon->GetStartingEntrances())
             {
-                entrance->SetDisbled(true);
+                entrance->SetDisabled(true);
             }
 
             // Check if the game is beatable, set dungeon as required if so. If the dungeon is not required and barren
@@ -942,7 +942,7 @@ namespace randomizer::logic::world
             // Re-enable the dungeon's entrances
             for (auto& entrance : dungeon->GetStartingEntrances())
             {
-                entrance->SetDisbled(false);
+                entrance->SetDisabled(false);
             }
         }
     }
@@ -1169,11 +1169,13 @@ namespace randomizer::logic::world
         return this->_startingItemPool;
     }
 
-    location::Location* World::GetLocation(const std::string& name)
+    location::Location* World::GetLocation(const std::string& name, const bool& ignoreError)
     {
         if (!this->_locationTable.contains(name))
         {
-            throw std::runtime_error("Unknown location name \"" + name + "\"");
+            if (!ignoreError)
+                throw std::runtime_error("Unknown location name \"" + name + "\"");
+            return nullptr;
         }
         return this->_locationTable.at(name).get();
     }
