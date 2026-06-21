@@ -116,6 +116,10 @@ int dMsgFlow_c::checkOpenDoor(fopAc_ac_c* i_speaker_p, int* param_2) {
     while ((nodeIdx != 0xFFFF && !var_r27) && !var_r25) {
         u8 type = mFlowNodeTBL[nodeIdx].message.type;
 
+#if TARGET_PC
+        randoPatchNodeType(type, nodeIdx);
+#endif
+
         switch(type) {
         case NODETYPE_MESSAGE_e: {
             msg_node = &mFlowNodeTBL[nodeIdx].message;
@@ -125,6 +129,10 @@ int dMsgFlow_c::checkOpenDoor(fopAc_ac_c* i_speaker_p, int* param_2) {
         }
         case NODETYPE_BRANCH_e: {
             branch_node = (mesg_flow_node_branch*)&mFlowNodeTBL[nodeIdx].branch;
+
+#if TARGET_PC
+            randoPatchBranchNode(branch_node, nodeIdx);
+#endif
 
             switch(branch_node->query_idx) {
             case 0:
@@ -144,6 +152,10 @@ int dMsgFlow_c::checkOpenDoor(fopAc_ac_c* i_speaker_p, int* param_2) {
         }
         case NODETYPE_EVENT_e: {
             event_node = &mFlowNodeTBL[nodeIdx].event;
+
+#if TARGET_PC
+            randoPatchEventNode(event_node, nodeIdx);
+#endif
 
             switch(event_node->event_idx) {
             case 12:
@@ -658,17 +670,7 @@ int dMsgFlow_c::branchNodeProc(fopAc_ac_c* i_speaker_p, fopAc_ac_c** i_talkPartn
     node = &mFlowNodeTBL[mNodeIdx].branch;
 
 #if TARGET_PC
-    // Overwrite this node if we have a patch for it
-    if (randomizer_IsActive()) {
-        u32 key = (dMsgObject_getGroupID() << 16) | mNodeIdx;
-        // Dirty check to see if this node is part of bmg 0
-        if (*(reinterpret_cast<u16*>(&mFlowNodeTBL[0])) == 0x0803) {
-            key &= 0x0000FFFF;
-        }
-        if (randomizer_GetContext().mFlowPatches.contains(key)) {
-            node = reinterpret_cast<mesg_flow_node_branch*>(&randomizer_GetContext().mFlowPatches[key]);
-        }
-    }
+    randoPatchBranchNode(node, mNodeIdx);
 #endif
 
     u16 proc_status = (this->*mQueryList[node->query_idx])(node, i_speaker_p, 1);
@@ -682,17 +684,7 @@ int dMsgFlow_c::eventNodeProc(fopAc_ac_c* i_speaker_p, fopAc_ac_c** i_talkPartne
     mesg_flow_node_event* node = NULL;
     node = &mFlowNodeTBL[mNodeIdx].event;
 #if TARGET_PC
-    // Overwrite this node if we have a patch for it
-    if (randomizer_IsActive()) {
-        u32 key = (dMsgObject_getGroupID() << 16) | mNodeIdx;
-        // Dirty check to see if this node is part of bmg 0
-        if (*(reinterpret_cast<u16*>(&mFlowNodeTBL[0])) == 0x0803) {
-            key &= 0x0000FFFF;
-        }
-        if (randomizer_GetContext().mFlowPatches.contains(key)) {
-            node = reinterpret_cast<mesg_flow_node_event*>(&randomizer_GetContext().mFlowPatches[key]);
-        }
-    }
+    randoPatchEventNode(node, mNodeIdx);
 #endif
     int proc_status = (this->*mEventList[node->event_idx])(node, i_speaker_p);
 
@@ -767,17 +759,7 @@ int dMsgFlow_c::nodeProc(fopAc_ac_c* i_speaker_p, fopAc_ac_c** i_talkPartners) {
 
         u8 type = mFlowNodeTBL[mNodeIdx].message.type;
 #if TARGET_PC
-        // Overwrite the type if we have a patch for this index
-        if (randomizer_IsActive()) {
-            u32 key = (dMsgObject_getGroupID() << 16) | mNodeIdx;
-            // Dirty check to see if this node is part of bmg 0
-            if (*(reinterpret_cast<u16*>(&mFlowNodeTBL[0])) == 0x0803) {
-                key &= 0x0000FFFF;
-            }
-            if (randomizer_GetContext().mFlowPatches.contains(key)) {
-                type = reinterpret_cast<mesg_flow_node*>(&randomizer_GetContext().mFlowPatches[key])->type;
-            }
-        }
+        randoPatchNodeType(type, mNodeIdx);
 #endif
         switch (type) {
         case NODETYPE_MESSAGE_e:
@@ -2748,5 +2730,48 @@ int dMsgFlow_c::event044(mesg_flow_node_event* i_flowNode_p, fopAc_ac_c* i_speak
         g_randomizerState.handleTimeOfDayChange();
     }
     return 1;
+}
+
+// Rando patch funcs
+void dMsgFlow_c::randoPatchNodeType(u8& type, u16 nodeIdx) {
+    // Overwrite the type if we have a patch for this index
+    if (randomizer_IsActive()) {
+        u32 key = (dMsgObject_getGroupID() << 16) | nodeIdx;
+        // Dirty check to see if this node is part of bmg 0
+        if (*(reinterpret_cast<u16*>(&mFlowNodeTBL[0])) == 0x0803) {
+            key &= 0x0000FFFF;
+        }
+        if (randomizer_GetContext().mFlowPatches.contains(key)) {
+            type = reinterpret_cast<mesg_flow_node*>(&randomizer_GetContext().mFlowPatches[key])->type;
+        }
+    }
+}
+
+void dMsgFlow_c::randoPatchBranchNode(mesg_flow_node_branch*& branch_node, u16 nodeIdx) {
+    // Overwrite this node if we have a patch for it
+    if (randomizer_IsActive()) {
+        u32 key = (dMsgObject_getGroupID() << 16) | nodeIdx;
+        // Dirty check to see if this node is part of bmg 0
+        if (*(reinterpret_cast<u16*>(&mFlowNodeTBL[0])) == 0x0803) {
+            key &= 0x0000FFFF;
+        }
+        if (randomizer_GetContext().mFlowPatches.contains(key)) {
+            branch_node = reinterpret_cast<mesg_flow_node_branch*>(&randomizer_GetContext().mFlowPatches[key]);
+        }
+    }
+}
+
+void dMsgFlow_c::randoPatchEventNode(mesg_flow_node_event*& event_node, u16 nodeIdx) {
+    // Overwrite this node if we have a patch for it
+    if (randomizer_IsActive()) {
+        u32 key = (dMsgObject_getGroupID() << 16) | nodeIdx;
+        // Dirty check to see if this node is part of bmg 0
+        if (*(reinterpret_cast<u16*>(&mFlowNodeTBL[0])) == 0x0803) {
+            key &= 0x0000FFFF;
+        }
+        if (randomizer_GetContext().mFlowPatches.contains(key)) {
+            event_node = reinterpret_cast<mesg_flow_node_event*>(&randomizer_GetContext().mFlowPatches[key]);
+        }
+    }
 }
 #endif

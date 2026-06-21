@@ -684,6 +684,15 @@ void dMenu_Ring_c::_draw() {
         mpCenterScreen->draw(mCenterPosX, mCenterPosY, grafPort);
         drawItem();
         textScaleHIO();
+#if TARGET_PC
+        if (randomizer_IsActive() && mItemSlots[mCurrentSlot] == 0x15) {
+            // Draw d-pad icon to indicate switching between items
+            if (getWarashibeItemCount() >= 2) {
+                mDpadIcon->setAlpha(mAlphaRate * 255.0);
+                mDpadIcon->draw(mCenterPosX + 330.f, mCenterPosY + 194.f, 30.f, 30.f, false, false, false);
+            }
+        }
+#endif
         f32 alphaRate = mpTextParent[1]->getAlphaRate();
         mpMessageParent->setAlphaRate(mAlphaRate);
         if (mStatus == STATUS_EXPLAIN) {
@@ -1316,11 +1325,7 @@ void dMenu_Ring_c::setActiveCursor() {
         }
 #if TARGET_PC
         else if (randomizer_IsActive() && mItemSlots[mCurrentSlot] == 0x15) {
-            // Draw d-pad icon to indicate switching between items
-            if (getWarashibeItemCount() >= 2) {
-                mDpadIcon->draw(mCenterPosX + 330.f, mCenterPosY + 194.f, 30.f, 30.f, false, false, false);
-            }
-
+            // Allow switching quest items if dpad right is pressed
             if (mDoCPd_c::getTrigRight(PAD_1)) {
                 setNextWarashibeItem();
                 updateSlotImage(0x15);

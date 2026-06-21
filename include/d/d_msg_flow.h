@@ -199,6 +199,13 @@ public:
     static queryFunc mQueryList[DUSK_IF_ELSE(54, 53)];
     static eventFunc mEventList[DUSK_IF_ELSE(45, 43)];
 
+#if TARGET_PC
+    // patch funcs for rando
+    void randoPatchNodeType(u8& type, u16 nodeIdx);
+    void randoPatchBranchNode(mesg_flow_node_branch*& branch_node, u16 nodeIdx);
+    void randoPatchEventNode(mesg_flow_node_event*& event_node, u16 nodeIdx);
+#endif
+
 private:
     /* 0x04 */ u8* mFlow_p;
     /* 0x08 */ u8* mLabelInfo_p;
