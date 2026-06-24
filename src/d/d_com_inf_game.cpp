@@ -2013,6 +2013,13 @@ stage_arrow_class* dComIfGp_getRoomArrow(int i_roomNo) {
 void dComIfGp_setNextStage(char const* i_stage, s16 i_point, s8 i_roomNo, s8 i_layer,
                            f32 i_lastSpeed, u32 i_lastMode, int i_setPoint, s8 i_wipe,
                            s16 i_lastAngle, int param_9, int i_wipeSpeedT) {
+#if TARGET_PC
+    // In rando, override this entrance if applicable
+    if (randomizer_IsActive()) {
+        randomizer_checkAndOverrideEntranceData(i_stage, i_roomNo, i_point, i_layer);
+    }
+#endif
+
     if (i_layer >= 15) {
         i_layer = -1;
     }
