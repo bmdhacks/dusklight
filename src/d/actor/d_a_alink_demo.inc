@@ -23,6 +23,8 @@
 #include "d/actor/d_a_npc_tkc.h"
 #include <cstring>
 
+#include "dusk/archipelago/archipelago_context.hpp"
+
 #if TARGET_PC
 #include "dusk/imgui/ImGuiConsole.hpp"
 #include "dusk/settings.h"
@@ -3302,6 +3304,15 @@ int daAlink_c::procCoDeadInit(int param_0) {
     field_0x3080 = 0;
     mProcVar5.field_0x3012 = 0x3F;
     field_0x3198 = -1;
+
+#if TARGET_PC
+    // trigger archipelago death link if applicable
+    if (dusk::archi::ArchipelagoContext::IsConnected()) {
+        dusk::archi::ArchipelagoContext::TryHandleDeathLink();
+    }
+
+#endif
+
     return 1;
 }
 

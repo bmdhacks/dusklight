@@ -37,12 +37,15 @@ namespace dusk::archi
         bool m_isUpdateLocations = false;
         bool m_isNeedResetInv = false;
         bool m_isAllowUpdateLocations = false;
+        bool m_isEnableDeathLink = false;
 
         // AP Data
         std::unordered_map<std::string, GameLocationInfo> m_locationItemInfo;
         std::map<int, bool> m_initLocationCollectState;
         AP_RoomInfo m_roomInfo;
         std::string m_SettingsFile;
+        bool m_isNeedPlayerDeath = false;
+        bool m_isFromDeathLink = false;
 
         // TEMP
         std::map<int, TEMP_GameItemInfo> m_apItemToGameItem;
@@ -57,6 +60,8 @@ namespace dusk::archi
         int getItemIdFromApId(int apId);
 
         std::string getLocationNameFromApId(int apId) const;
+
+        bool tryKillPlayer();
     public:
         ArchipelagoContext();
 
@@ -112,9 +117,13 @@ namespace dusk::archi
 
         static bool IsReceivedLocationScouts();
 
+        static void TryHandleDeathLink();
+
         // State Requesters
 
         static void RequestAllLocationScout(bool isHint = false);
+
+        static void RequestPlayerDeath(bool isDeathLink = false);
 
         // AP -> Internal Rando Converters
 

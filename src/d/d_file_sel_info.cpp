@@ -16,6 +16,7 @@
 
 #include "dusk/string.hpp"
 #include "dusk/version.hpp"
+#include "dusk/archipelago/archipelago_context.hpp"
 
 dFile_info_c::dFile_info_c(JKRArchive* i_archive, u8 param_1) {
     mArchive = i_archive;
@@ -120,9 +121,11 @@ int dFile_info_c::setSaveData(dSv_save_c* i_savedata, BOOL i_validChksum, u8 i_d
             // If this is a randomizer file
             auto curFileSeedHash = dusk::getSettings().randomizer.seedHashes.at(i_dataNo).getValue();
             if (!curFileSeedHash.empty()) {
-                // Overwrite "Save time" text with "Randomizer"
+                bool isArchipelago = dusk::archi::ArchipelagoContext::IsSeedHashArchipelago(curFileSeedHash);
+
+                // Overwrite "Save time" text with "Randomizer" or "Archipelago"
                 auto saveTimeText = (J2DTextBox*)mFileInfo.Scr->search(MULTI_CHAR('f_s_t_02'));
-                dusk::SafeStringCopy(saveTimeText->getStringPtr(), "Randomizer");
+                dusk::SafeStringCopy(saveTimeText->getStringPtr(), isArchipelago ? "Archipelago" : "Randomizer");
                 saveTimeText->setHBinding(J2DTextBoxHBinding::HBIND_LEFT);
 
                 // Overwrite the "Total play time" text with the seed hash

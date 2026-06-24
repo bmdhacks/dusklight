@@ -11,6 +11,10 @@
 #  Group: 0
 #  Message Id: 122
 
+- Name: Archipelago Item Get Item Text
+  Group: 0
+  Message Id: 321
+
 - Name: Shadow Crystal Get Item Text
   Group: 0
   Message Id: 151

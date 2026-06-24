@@ -288,6 +288,14 @@ Progressive Wallet:
   Cryptic:
     Text: a {money bag}
 
+Archipelago Item:
+  Standard:
+    Text: Archipelago Item
+  Pretty:
+    Text: an {Archipelago Item}
+  Cryptic:
+    Text: an {item from another world}
+
 Upper Zoras River Portal:
   Standard:
     Text: Upper Zoras River Portal
@@ -1604,6 +1612,11 @@ No Required Dungeons Text:
     Text: No Required Dungeons
 
 # ITEM GET TEXT
+Archipelago Item Get Item Text:
+  Standard:
+    Text: |-
+      <fast>You got an <red>Archipelago Item<white>!
+
 Foolish Get Item Text:
   Standard:
     Text: |-

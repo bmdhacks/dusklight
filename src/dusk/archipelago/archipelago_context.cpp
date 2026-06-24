@@ -4,6 +4,7 @@
 
 #include "Archipelago.h"
 #include "d/d_item.h"
+#include "d/actor/d_a_alink.h"
 #include "dusk/config.hpp"
 #include "dusk/logging.h"
 #include "dusk/randomizer/game/tools.h"
@@ -136,6 +137,17 @@ void ParseMessageData() {
     auto msg = AP_GetLatestMessage();
 
     switch (msg->type) {
+    case AP_MessageType::ItemSend: {
+        auto sendMsg = (AP_ItemSendMessage*)msg;
+        ui::push_toast({
+            .title = "Item Sent",
+            .content = fmt::format("Sent {} to {}", sendMsg->item, sendMsg->recvPlayer),
+            .duration = std::chrono::seconds(3),
+        });
+
+        DuskLog.info("[{}] {}", getMessageTypeName(msg->type), msg->text);
+        break;
+    }
     case AP_MessageType::ItemRecv: {
         auto recvMsg = (AP_ItemRecvMessage*)msg;
 
@@ -147,7 +159,6 @@ void ParseMessageData() {
         // fallthrough for debug logging text contents
     }
     case AP_MessageType::Plaintext:
-    case AP_MessageType::ItemSend:
     case AP_MessageType::Hint:
     case AP_MessageType::Countdown:
         DuskLog.info("[{}] {}", getMessageTypeName(msg->type), msg->text);
@@ -266,6 +277,45 @@ std::string ArchipelagoContext::getLocationNameFromApId(int apId) const {
     return "";
 }
 
+bool ArchipelagoContext::tryKillPlayer() {
+    if (!m_isNeedPlayerDeath)
+        return false;
+
+    auto linkActor = daAlink_getAlinkActorClass();
+
+    if (!linkActor)
+        return false;
+
+    switch (linkActor->mProcID) {
+        case daAlink_c::PROC_WAIT:
+        case daAlink_c::PROC_TIRED_WAIT:
+        case daAlink_c::PROC_MOVE:
+        case daAlink_c::PROC_WOLF_WAIT:
+        case daAlink_c::PROC_WOLF_TIRED_WAIT:
+        case daAlink_c::PROC_WOLF_MOVE:
+        case daAlink_c::PROC_ATN_MOVE:
+        case daAlink_c::PROC_WOLF_ATN_AC_MOVE: {
+            // Check if link is currently in a cutscene
+            if (linkActor->checkEventRun())
+                break;
+
+            // Ensure that link is not currently in a message-based event.
+            if (linkActor->getEventId() != 0)
+                break;
+
+            dComIfGs_setLife(0);
+
+            m_isNeedPlayerDeath = false;
+
+            return true;
+        }
+        default:
+            break;
+    }
+
+    return false;
+}
+
 ArchipelagoContext::ArchipelagoContext() = default;
 
 void ArchipelagoContext::SetServerIp(const std::string_view& ip) {
@@ -295,7 +345,7 @@ const std::string& ArchipelagoContext::GetPassword() {
 std::string ArchipelagoContext::GetArchipelagoSeedName() {
     if (IsConnected()) {
         auto& roomInfo = instance().m_roomInfo;
-        return fmt::format("AP_{}_{}", GetSlotName(), roomInfo.seed_name);
+        return fmt::format("AP_{}", roomInfo.seed_name);
     }else {
         DuskLog.fatal("Archipelago was not connected when attempting to get seed name!");
     }
@@ -331,6 +381,13 @@ bool ArchipelagoContext::ConnectToServer(bool isBlocking) {
 
     AP_NetworkVersion ver{0, 6,7};
     AP_SetClientVersion(&ver);
+
+    AP_SetDeathLinkSupported(true);
+
+    AP_SetDeathLinkRecvCallback([](std::string source, std::string cause) {
+        DuskLog.info("Player {} sent death link. Cause: {}", source, cause);
+        RequestPlayerDeath(true);
+    });
 
     AP_SetItemClearCallback([]() {
         DuskLog.info("Item Clear Callback Called!");
@@ -395,14 +452,11 @@ bool ArchipelagoContext::IsConnected() {
 }
 
 void ArchipelagoContext::MessageThreadFunc() {
-    // wait a bit before checking connection state, as websocket is probably not connected yet
-    // (i really am not liking APCpp, why cant I check if the websocket is in the process of connecting???)
-    std::this_thread::sleep_for(std::chrono::seconds(2));
-
     DuskLog.info("AP Thread started.");
 
     if (IsConnected()) {
         AP_GetRoomInfo(&instance().m_roomInfo);
+        instance().m_isEnableDeathLink = AP_IsDeathLinkEnabled();
         RequestAllLocationScout();
     }
 
@@ -423,6 +477,12 @@ void ArchipelagoContext::Execute() {
         HandleResetInventory();
         instance().m_isNeedResetInv = false;
         return; // end execution early so next frame can re-add inventory if needed
+    }
+
+    // process death links
+    if (instance().tryKillPlayer()) {
+        // if successful, don't bother processing item queue or location checks
+        return;
     }
 
     // drain pending item queue here
@@ -541,7 +601,8 @@ void ArchipelagoContext::HandleReceiveLocationScout(const std::vector<AP_Network
         };
     }
 }
-
+// TODO: atm this is a sort of lazy solution to not having direct access to what location was checked when an execItemGet is called
+// so eventually finding a way to properly associate locations with their respective item get funcs would benefit this system
 void ArchipelagoContext::UpdateCheckedLocations() {
     auto& world = instance().m_archiWorld;
 
@@ -556,7 +617,7 @@ void ArchipelagoContext::UpdateCheckedLocations() {
         auto locName = location->GetName();
 
         if (!instance().m_locationItemInfo.contains(locName)) {
-            DuskLog.warn("No item found for ({}).", locName);
+            DuskLog.debug("No item found for ({}).", locName);
             continue;
         }
 
@@ -659,6 +720,13 @@ bool ArchipelagoContext::IsReceivedLocationScouts() {
     return !instance().m_locationItemInfo.empty();
 }
 
+void ArchipelagoContext::TryHandleDeathLink() {
+    if (instance().m_isEnableDeathLink && !instance().m_isFromDeathLink) {
+        // TODO: come up with better death messages
+        AP_DeathLinkSend("%YOU% was unable to become the Hero of Twilight.");
+    }
+}
+
 void ArchipelagoContext::RequestAllLocationScout(bool isHint) {
     std::set<int64_t> locations;
     // TEMP: apworld has 475 locations with ids in sequential order, so add them all individually to location set
@@ -668,6 +736,11 @@ void ArchipelagoContext::RequestAllLocationScout(bool isHint) {
     }
 
     AP_SendLocationScouts(locations, isHint);
+}
+
+void ArchipelagoContext::RequestPlayerDeath(bool isDeathLink) {
+    instance().m_isNeedPlayerDeath = true;
+    instance().m_isFromDeathLink = isDeathLink;
 }
 
 bool ArchipelagoContext::GenerateConfigFromAP(randomizer::seedgen::config::Config& config, const std::string& settingsStr) {
