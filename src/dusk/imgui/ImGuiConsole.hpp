@@ -40,7 +40,6 @@ private:
     // Keep always last
     ImGuiMenuTools m_menuTools;
 
-    void ShowPipelineProgress();
     void UpdateDragScroll();
 };
 
