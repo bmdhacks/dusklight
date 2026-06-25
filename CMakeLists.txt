@@ -525,6 +525,8 @@ endif ()
 # Add embedded data to target
 
 file(GLOB_RECURSE RANDOMIZER_DATA "src/dusk/randomizer/generator/data/*")
+file(GLOB_RECURSE RANDOMIZER_ASSETS "src/dusk/randomizer/assets/*")
+list(APPEND RANDOMIZER_DATA ${RANDOMIZER_ASSETS})
 set(RANDO_ROOT_DATA_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 
 foreach (RANDOMIZER_FILE IN LISTS RANDOMIZER_DATA)

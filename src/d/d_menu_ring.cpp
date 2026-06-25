@@ -29,15 +29,12 @@
 
 #include <cstdio>
 #if TARGET_PC
-#include "dusk/randomizer/game/verify_item_functions.h"
-#include "dusk/randomizer/game/tools.h"
-#endif
-
-#if TARGET_PC
 #include "dusk/game_clock.h"
 #include "dusk/menu_pointer.h"
 #include "dusk/settings.h"
 #include "dusk/ui/touch_controls.hpp"
+#include "dusk/randomizer/game/verify_item_functions.h"
+#include "dusk/randomizer/game/tools.h"
 #endif
 
 typedef void (dMenu_Ring_c::*initFunc)();
