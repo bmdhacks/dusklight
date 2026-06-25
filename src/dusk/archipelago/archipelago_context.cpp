@@ -727,6 +727,12 @@ void ArchipelagoContext::TryHandleDeathLink() {
     }
 }
 
+bool ArchipelagoContext::TryHandleGameComplete() {
+    // TODO: maybe add support for other game completion types?
+    AP_StoryComplete();
+    return true;
+}
+
 void ArchipelagoContext::RequestAllLocationScout(bool isHint) {
     std::set<int64_t> locations;
     // TEMP: apworld has 475 locations with ids in sequential order, so add them all individually to location set

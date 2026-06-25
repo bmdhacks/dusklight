@@ -119,6 +119,8 @@ namespace dusk::archi
 
         static void TryHandleDeathLink();
 
+        static bool TryHandleGameComplete();
+
         // State Requesters
 
         static void RequestAllLocationScout(bool isHint = false);

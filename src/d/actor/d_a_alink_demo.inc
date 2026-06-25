@@ -4322,6 +4322,10 @@ int daAlink_c::procGanonFinishInit() {
             dusk::m_speedrunInfo.stopRun();
         }
     }
+
+    if (dusk::archi::ArchipelagoContext::IsConnected()) {
+        dusk::archi::ArchipelagoContext::TryHandleGameComplete();
+    }
 #endif
 
     return 1;
