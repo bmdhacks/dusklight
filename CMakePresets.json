@@ -53,6 +53,16 @@
       }
     },
     {
+      "name": "asan",
+      "hidden": true,
+      "cacheVariables": {
+        "ENABLE_ASAN": {
+          "type": "BOOL",
+          "value": true
+        }
+      }
+    },
+    {
       "name": "linux-default",
       "displayName": "Linux (default)",
       "generator": "Ninja",
@@ -84,6 +94,15 @@
       ]
     },
     {
+      "name": "linux-default-debug-asan",
+      "displayName": "Linux (default) Debug ASan",
+      "inherits": [
+        "debug",
+        "linux-default",
+        "asan"
+      ]
+    },
+    {
       "name": "linux-default-relwithdebinfo",
       "displayName": "Linux (default) RelWithDebInfo",
       "inherits": [
@@ -111,6 +130,15 @@
       ]
     },
     {
+      "name": "linux-clang-debug-asan",
+      "displayName": "Linux (Clang) Debug ASan",
+      "inherits": [
+        "debug",
+        "linux-clang",
+        "asan"
+      ]
+    },
+    {
       "name": "linux-clang-relwithdebinfo",
       "displayName": "Linux (Clang) RelWithDebInfo",
       "inherits": [
@@ -130,7 +158,11 @@
       "cacheVariables": {
         "CMAKE_C_COMPILER": "cl",
         "CMAKE_CXX_COMPILER": "cl",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/install"
+        "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/install",
+        "CMAKE_DISABLE_FIND_PACKAGE_PkgConfig": {
+          "type": "BOOL",
+          "value": true
+        }
       },
       "vendor": {
         "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -146,6 +178,15 @@
       "inherits": [
         "debug",
         "windows-msvc"
+      ]
+    },
+    {
+      "name": "windows-msvc-debug-asan",
+      "displayName": "Windows (MSVC) Debug ASan",
+      "inherits": [
+        "debug",
+        "windows-msvc",
+        "asan"
       ]
     },
     {
@@ -237,6 +278,15 @@
       "inherits": [
         "debug",
         "macos-default"
+      ]
+    },
+    {
+      "name": "macos-default-debug-asan",
+      "displayName": "macOS (default) Debug ASan",
+      "inherits": [
+        "debug",
+        "macos-default",
+        "asan"
       ]
     },
     {
@@ -530,6 +580,12 @@
       "displayName": "Linux (default) Debug"
     },
     {
+      "name": "linux-default-debug-asan",
+      "configurePreset": "linux-default-debug-asan",
+      "description": "Linux (default) debug build with AddressSanitizer",
+      "displayName": "Linux (default) Debug ASan"
+    },
+    {
       "name": "linux-default-relwithdebinfo",
       "configurePreset": "linux-default-relwithdebinfo",
       "description": "Linux (default) release build with debug info",
@@ -542,6 +598,12 @@
       "displayName": "Linux (Clang) Debug"
     },
     {
+      "name": "linux-clang-debug-asan",
+      "configurePreset": "linux-clang-debug-asan",
+      "description": "Linux (Clang) debug build with AddressSanitizer",
+      "displayName": "Linux (Clang) Debug ASan"
+    },
+    {
       "name": "linux-clang-relwithdebinfo",
       "configurePreset": "linux-clang-relwithdebinfo",
       "description": "Linux (Clang) release build with debug info",
@@ -552,6 +614,12 @@
       "configurePreset": "macos-default-debug",
       "description": "macOS debug build",
       "displayName": "macOS Debug"
+    },
+    {
+      "name": "macos-default-debug-asan",
+      "configurePreset": "macos-default-debug-asan",
+      "description": "macOS debug build with AddressSanitizer",
+      "displayName": "macOS Debug ASan"
     },
     {
       "name": "macos-default-relwithdebinfo",
@@ -609,6 +677,12 @@
       "configurePreset": "windows-msvc-debug",
       "description": "Windows (MSVC) debug build",
       "displayName": "Windows (MSVC) Debug"
+    },
+    {
+      "name": "windows-msvc-debug-asan",
+      "configurePreset": "windows-msvc-debug-asan",
+      "description": "Windows (MSVC) debug build with AddressSanitizer",
+      "displayName": "Windows (MSVC) Debug ASan"
     },
     {
       "name": "windows-msvc-relwithdebinfo",

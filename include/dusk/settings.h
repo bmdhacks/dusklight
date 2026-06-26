@@ -1,9 +1,9 @@
-#ifndef DUSK_CONFIG_H
-#define DUSK_CONFIG_H
+#pragma once
 
 #include <array>
 
 #include "dusk/config_var.hpp"
+#include "dusk/ui/controls.hpp"
 
 namespace dusk {
 
@@ -40,11 +40,6 @@ enum class DiscVerificationState : u8 {
     HashMismatch,
 };
 
-enum class GyroMode : u8 {
-    Sensor = 0,
-    Mouse = 1,
-};
-
 enum class FrameInterpMode : u8 {
     Off = 0,
     Capped = 1,
@@ -55,6 +50,14 @@ enum class MenuScaling : u8 {
     GameCube = 0,
     Wii = 1,
     Dusklight = 2,
+};
+
+enum class MagicArmorMode : u8 {
+    NORMAL = 0,
+    ON_DAMAGE = 1,
+    DOUBLE_DEFENSE = 2,
+    INVINCIBLE = 3,
+    COSMETIC = 4,
 };
 
 namespace config {
@@ -89,12 +92,6 @@ struct ConfigEnumRange<DiscVerificationState> {
 };
 
 template <>
-struct ConfigEnumRange<GyroMode> {
-    static constexpr auto min = GyroMode::Sensor;
-    static constexpr auto max = GyroMode::Mouse;
-};
-
-template <>
 struct ConfigEnumRange<FrameInterpMode> {
     static constexpr auto min = FrameInterpMode::Off;
     static constexpr auto max = FrameInterpMode::Unlimited;
@@ -104,6 +101,17 @@ template <>
 struct ConfigEnumRange<MenuScaling> {
     static constexpr auto min = MenuScaling::GameCube;
     static constexpr auto max = MenuScaling::Dusklight;
+};
+
+template <>
+struct ConfigEnumRange<MagicArmorMode> {
+    static constexpr auto min = MagicArmorMode::NORMAL;
+    static constexpr auto max = MagicArmorMode::COSMETIC;
+};
+
+template <>
+struct ConfigValueTraits<ui::ControlLayout> {
+    static constexpr bool enabled = true;
 };
 }  // namespace config
 
@@ -120,6 +128,9 @@ struct UserSettings {
         ConfigVar<bool> enableFpsOverlay;
         ConfigVar<int> fpsOverlayCorner;
         ConfigVar<int> maxFrameRate;
+        ConfigVar<bool> rememberWindowSize;
+        ConfigVar<int> lastWindowWidth;
+        ConfigVar<int> lastWindowHeight;
     } video;
 
     struct {
@@ -204,6 +215,9 @@ struct UserSettings {
         ConfigVar<float> mouseCameraSensitivity;
         ConfigVar<bool> invertMouseY;
         ConfigVar<bool> freeCamera;
+        ConfigVar<bool> enableTouchControls;
+        ConfigVar<bool> enableMenuPointer;
+        ConfigVar<ui::ControlLayout> touchControlsLayout;
         ConfigVar<bool> invertCameraXAxis;
         ConfigVar<bool> invertCameraYAxis;
         ConfigVar<bool> invertFirstPersonXAxis;
@@ -212,6 +226,8 @@ struct UserSettings {
         ConfigVar<bool> invertAirSwimY;
         ConfigVar<float> freeCameraXSensitivity;
         ConfigVar<float> freeCameraYSensitivity;
+        ConfigVar<float> touchCameraXSensitivity;
+        ConfigVar<float> touchCameraYSensitivity;
         ConfigVar<bool> debugFlyCam;
         ConfigVar<bool> debugFlyCamLockEvents;
         ConfigVar<bool> allowBackgroundInput;
@@ -234,7 +250,7 @@ struct UserSettings {
         ConfigVar<bool> canTransformAnywhere;
         ConfigVar<bool> fastRoll;
         ConfigVar<bool> fastSpinner;
-        ConfigVar<bool> freeMagicArmor;
+        ConfigVar<MagicArmorMode> armorRupeeDrain;
         ConfigVar<bool> invincibleEnemies;
 
         // Technical
@@ -259,7 +275,6 @@ struct UserSettings {
         ConfigVar<DiscVerificationState> isoVerification;
         ConfigVar<std::string> graphicsBackend;
         ConfigVar<bool> skipPreLaunchUI;
-        ConfigVar<bool> showPipelineCompilation;
         ConfigVar<bool> wasPresetChosen;
         ConfigVar<bool> checkForUpdates;
         ConfigVar<int> cardFileType;
@@ -270,6 +285,8 @@ struct UserSettings {
     struct {
         std::array<ActionBindConfigVar, 4> firstPersonCamera;
         std::array<ActionBindConfigVar, 4> callMidna;
+        std::array<ActionBindConfigVar, 4> openMapScreen;
+        std::array<ActionBindConfigVar, 4> toggleMinimap;
         std::array<ActionBindConfigVar, 4> openDusklightMenu;
         std::array<ActionBindConfigVar, 4> turboSpeedButton;
     } actionBindings;
@@ -301,6 +318,4 @@ struct TransientSettings {
 
 TransientSettings& getTransientSettings();
 
-}
-
-#endif // DUSK_CONFIG_H
+}  // namespace dusk

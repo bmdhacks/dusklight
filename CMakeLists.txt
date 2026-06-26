@@ -126,6 +126,33 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set_property(GLOBAL PROPERTY PREDEFINED_TARGETS_FOLDER "_cmake")
 
+option(ENABLE_ASAN "Enable AddressSanitizer" OFF)
+if (ENABLE_ASAN)
+    if (CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC" AND
+            CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+        add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/fsanitize=address>)
+        add_link_options(/fsanitize=address /INCREMENTAL:NO)
+        set(CMAKE_MSVC_DEBUG_INFORMATION_FORMAT "ProgramDatabase")
+        foreach (_lang C CXX)
+            foreach (_rtc_flag /RTC1 /RTCc /RTCs /RTCu)
+                string(REPLACE "${_rtc_flag}" "" CMAKE_${_lang}_FLAGS_DEBUG "${CMAKE_${_lang}_FLAGS_DEBUG}")
+            endforeach ()
+        endforeach ()
+    elseif (CMAKE_C_COMPILER_FRONTEND_VARIANT STREQUAL "GNU" AND
+            CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "GNU")
+        add_compile_options(
+                $<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fsanitize=address>
+                $<$<COMPILE_LANGUAGE:C,CXX,OBJC,OBJCXX>:-fno-omit-frame-pointer>
+        )
+        add_link_options(-fsanitize=address)
+    else ()
+        message(FATAL_ERROR "ENABLE_ASAN requires GNU-like or MSVC-like C/C++ compiler frontends")
+    endif ()
+
+    add_compile_definitions(NDEBUG_SANITIZER) # Avoids absl issue with SwissTable debug code
+    message(STATUS "dusklight: Enabled AddressSanitizer")
+endif ()
+
 if (CMAKE_SYSTEM_NAME STREQUAL Linux)
   set(DAWN_USE_WAYLAND ON CACHE BOOL "Enable support for Wayland surface" FORCE)
 endif ()
@@ -148,6 +175,7 @@ option(DUSK_SELECTED_OPT "If on, selected parts of the project will be compiled 
 option(DUSK_MOVIE_SUPPORT "If on, compile against libjpeg-turbo to enable THP file decoding" ON)
 option(DUSK_ENABLE_UPDATE_CHECKER "Enable update checking support" ON)
 option(DUSK_ENABLE_SENTRY_NATIVE "Enable sentry-native crash reporting support" OFF)
+option(DUSK_PACKAGE_INSTALL "Install Dusklight with a Linux-native file structure" OFF)
 option(DUSK_GFX_DEBUG_GROUPS "Report debug groups to the native graphics API" ${DUSK_GFX_DEBUG_GROUPS_DEFAULT})
 set(DUSK_SENTRY_DSN "" CACHE STRING "Sentry DSN")
 set(DUSK_SENTRY_ENVIRONMENT "development" CACHE STRING "Sentry environment")
@@ -256,7 +284,6 @@ elseif (MSVC)
     add_compile_options($<$<COMPILE_LANGUAGE:C,CXX>:/utf-8>)
 endif ()
 
-
 include(FetchContent)
 
 # Declare all dependencies first so CMake can download them in parallel
@@ -264,14 +291,14 @@ message(STATUS "dusklight: Fetching cxxopts")
 FetchContent_Declare(cxxopts
     URL https://github.com/jarro2783/cxxopts/archive/refs/tags/v3.3.1.tar.gz
     URL_HASH SHA256=3bfc70542c521d4b55a46429d808178916a579b28d048bd8c727ee76c39e2072
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    DOWNLOAD_EXTRACT_TIMESTAMP FALSE
     EXCLUDE_FROM_ALL
 )
 message(STATUS "dusklight: Fetching nlohmann/json")
 FetchContent_Declare(json
     URL https://github.com/nlohmann/json/releases/download/v3.12.0/json.tar.xz
     URL_HASH SHA256=42f6e95cad6ec532fd372391373363b62a14af6d771056dbfc86160e6dfff7aa
-    DOWNLOAD_EXTRACT_TIMESTAMP TRUE
+    DOWNLOAD_EXTRACT_TIMESTAMP FALSE
     EXCLUDE_FROM_ALL
 )
 
@@ -387,9 +414,7 @@ target_link_libraries(dusklight_game_headers INTERFACE TracyClient)
 find_package(Threads REQUIRED)
 set(GAME_LIBS aurora::core aurora::gx aurora::gd aurora::si aurora::vi aurora::pad aurora::mtx aurora::os aurora::dvd
     aurora::card freeverb cxxopts::cxxopts absl::flat_hash_map nlohmann_json::nlohmann_json TracyClient fmt::fmt funchook-static
-    Threads::Threads)
-
-list(APPEND GAME_LIBS zstd::libzstd)
+    Threads::Threads zstd::libzstd)
 
 if (DUSK_ENABLE_SENTRY_NATIVE)
     list(APPEND GAME_LIBS sentry)
@@ -471,6 +496,11 @@ if (DUSK_ENABLE_CODE_MODS)
     endif ()
 endif ()
 
+if (DUSK_PACKAGE_INSTALL)
+    include(GNUInstallDirs)
+    list(APPEND GAME_COMPILE_DEFS DUSK_ASSET_DIR="${CMAKE_INSTALL_FULL_DATADIR}/dusklight/")
+endif ()
+
 if (DUSK_GFX_DEBUG_GROUPS)
     list(APPEND GAME_COMPILE_DEFS DUSK_GFX_DEBUG_GROUPS=1)
     target_compile_definitions(aurora_gx PRIVATE AURORA_GFX_DEBUG_GROUPS)
@@ -550,6 +580,9 @@ elseif(WIN32)
 else ()
     add_executable(dusklight ${DUSK_FILES})
     set(DUSK_MAIN_TARGET dusklight)
+endif ()
+if (ENABLE_ASAN)
+    target_sources(${DUSK_MAIN_TARGET} PRIVATE src/dusk/asan_options.c)
 endif ()
 
 if (WIN32 AND TARGET imgui)
@@ -743,19 +776,33 @@ if (TARGET crashpad_handler)
 endif ()
 if (WIN32)
     # Install the launcher and game DLL, but skip the DLL import library.
-    install(TARGETS ${BINARY_TARGETS} ${EXTRA_TARGETS}
-        RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}
-        LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}
-        BUNDLE DESTINATION ${CMAKE_INSTALL_PREFIX}
-    )
+    if (DUSK_PACKAGE_INSTALL)
+        install(TARGETS ${BINARY_TARGETS} ${EXTRA_TARGETS}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_BINDIR}
+            BUNDLE DESTINATION ${CMAKE_INSTALL_BINDIR}
+        )
+    else ()
+        install(TARGETS ${BINARY_TARGETS} ${EXTRA_TARGETS}
+            RUNTIME DESTINATION ${CMAKE_INSTALL_PREFIX}
+            LIBRARY DESTINATION ${CMAKE_INSTALL_PREFIX}
+            BUNDLE DESTINATION ${CMAKE_INSTALL_PREFIX}
+        )
+    endif ()
+elseif (DUSK_PACKAGE_INSTALL)
+    install(TARGETS ${BINARY_TARGETS} ${EXTRA_TARGETS} DESTINATION ${CMAKE_INSTALL_BINDIR})
 else ()
     install(TARGETS ${BINARY_TARGETS} ${EXTRA_TARGETS} DESTINATION ${CMAKE_INSTALL_PREFIX})
 endif ()
 aurora_install_runtime_dlls(dusklight ${CMAKE_INSTALL_PREFIX})
 if (NOT APPLE)
-    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/res DESTINATION ${CMAKE_INSTALL_PREFIX})
+    if (DUSK_PACKAGE_INSTALL)
+        install(DIRECTORY ${CMAKE_SOURCE_DIR}/res DESTINATION ${CMAKE_INSTALL_DATAROOTDIR}/dusklight)
+    else()
+        install(DIRECTORY ${CMAKE_SOURCE_DIR}/res DESTINATION ${CMAKE_INSTALL_PREFIX})
+    endif()
 endif ()
-if (CMAKE_BUILD_TYPE STREQUAL Debug OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo)
+if (CMAKE_BUILD_TYPE STREQUAL Debug OR CMAKE_BUILD_TYPE STREQUAL RelWithDebInfo AND NOT DUSK_PACKAGE_INSTALL)
     set(DEBUG_FILES_LIST "")
     foreach (target IN LISTS BINARY_TARGETS EXTRA_TARGETS)
         get_target_output_name(${target} output_name)

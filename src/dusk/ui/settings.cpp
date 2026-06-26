@@ -6,6 +6,7 @@
 #include "dusk/app_info.hpp"
 #include "dusk/audio/DuskAudioSystem.h"
 #include "dusk/audio/DuskDsp.hpp"
+#include "dusk/android_frame_rate.hpp"
 #include "dusk/config.hpp"
 #include "dusk/hotkeys.h"
 #include "dusk/data.hpp"
@@ -22,6 +23,7 @@
 #include "menu_bar.hpp"
 #include "pane.hpp"
 #include "prelaunch.hpp"
+#include "touch_controls_editor.hpp"
 #include "ui.hpp"
 
 #include <aurora/lib/window.hpp>
@@ -34,6 +36,17 @@
 
 #include <algorithm>
 #include <filesystem>
+
+#if defined(__APPLE__)
+#include <TargetConditionals.h>
+#endif
+
+#if defined(TARGET_ANDROID) || defined(__ANDROID__) || \
+    (defined(__APPLE__) && TARGET_OS_IOS && !TARGET_OS_MACCATALYST)
+#define TOUCH_CONTROLS_AVAILABLE true
+#else
+#define TOUCH_CONTROLS_AVAILABLE false
+#endif
 
 namespace dusk::ui {
 namespace {
@@ -73,6 +86,14 @@ constexpr std::array kMenuScalingModeLabels = {
     "GameCube",
     "Wii",
     "Dusklight",
+};
+
+constexpr std::array kMagicArmorModes = {
+    "Normal",
+    "On Damage",
+    "Double Defense",
+    "Invincible",
+    "Cosmetic",
 };
 
 bool try_parse_backend(std::string_view backend, AuroraBackend& outBackend) {
@@ -211,7 +232,7 @@ void reset_for_speedrun_mode() {
     getSettings().game.canTransformAnywhere.setSpeedrunValue(false);
     getSettings().game.fastRoll.setSpeedrunValue(false);
     getSettings().game.fastSpinner.setSpeedrunValue(false);
-    getSettings().game.freeMagicArmor.setSpeedrunValue(false);
+    getSettings().game.armorRupeeDrain.setSpeedrunValue(MagicArmorMode::NORMAL);
     getSettings().game.invincibleEnemies.setSpeedrunValue(false);
 
     getSettings().game.pauseOnFocusLost.setSpeedrunValue(false);
@@ -458,14 +479,19 @@ SelectButton& config_percent_select(Pane& leftPane, Pane& rightPane, ConfigVar<f
 
 SelectButton& config_int_select(Pane& leftPane, Pane& rightPane, ConfigVar<int>& var,
     Rml::String key, Rml::String helpText, int min, int max, int step = 5,
-    std::function<bool()> isDisabled = {}, std::string suffix = "") {
+    std::function<bool()> isDisabled = {}, std::function<void(int)> onChange = {},
+    std::string suffix = "") {
     auto& button = leftPane.add_child<NumberButton>(NumberButton::Props{
         .key = std::move(key),
         .getValue = [&var] { return var.getValue(); },
         .setValue =
-            [&var, min, max](int value) {
-                var.setValue(std::clamp(value, min, max));
+            [&var, min, max, callback = std::move(onChange)](int value) {
+                const int clampedValue = std::clamp(value, min, max);
+                var.setValue(clampedValue);
                 config::Save();
+                if (callback) {
+                    callback(clampedValue);
+                }
             },
         .isDisabled = std::move(isDisabled),
         .isModified = [&var] { return var.getValue() != var.getDefaultValue(); },
@@ -642,7 +668,7 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
             leftPane.register_control(
                 leftPane.add_select_button({
                     .key = "Graphics Backend",
-                    .getValue = [] { return Rml::String{backend_name(configured_backend())}; },
+                    .getValue = [] { return Rml::String{backend_name(aurora_get_backend())}; },
                     .isModified =
                         [] {
                             return getSettings().backend.graphicsBackend.getValue() !=
@@ -794,6 +820,21 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                 pane.add_rml(
                     "<br/>Display the current framerate in a corner of the screen while playing.");
             });
+        config_bool_select(leftPane, rightPane, getSettings().video.rememberWindowSize,
+            {
+                .key = "Remember Window Size",
+                .helpText = "Save and restore the previous session's window size when opening Dusklight.",
+                .onChange =
+                    [](bool value) {
+                        if (value && !dusk::getSettings().video.enableFullscreen) {
+                            const auto windowSize = aurora::window::get_window_size();
+                            dusk::getSettings().video.lastWindowWidth.setValue(windowSize.width);
+                            dusk::getSettings().video.lastWindowHeight.setValue(windowSize.height);
+                            dusk::config::Save();
+                        }
+                    },
+                .isDisabled = [] { return IsMobile; },
+            });
         leftPane.add_section("Resolution");
         graphics_tuner_control(*this, leftPane, rightPane,
             getSettings().game.internalResolutionScale,
@@ -894,6 +935,7 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                         .on_pressed([i] {
                             mDoAud_seStartMenu(kSoundItemChange);
                             getSettings().game.enableFrameInterpolation.setValue(static_cast<FrameInterpMode>(i));
+                            android::update_surface_frame_rate();
                             config::Save();
                         });
                 }
@@ -901,7 +943,8 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
             });
         config_int_select(leftPane, rightPane, getSettings().video.maxFrameRate,
             "Framerate Cap", "Limit the framerate to the specified value.", 30, 540, 1,
-            [] { return getSettings().game.enableFrameInterpolation.getValue() != FrameInterpMode::Capped; });
+            [] { return getSettings().game.enableFrameInterpolation.getValue() != FrameInterpMode::Capped; },
+            [](int) { android::update_surface_frame_rate(); });
         config_bool_select(leftPane, rightPane, getSettings().game.enableMapBackground,
             {
                 .key = "Enable Mini-Map Shadows",
@@ -944,6 +987,31 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                 .helpText = "Allow inputs even when the game window is not focused.",
                 .onChange = [](bool value) { aurora_set_background_input(value); },
             });
+
+#if TOUCH_CONTROLS_AVAILABLE
+        leftPane.add_section("Touch");
+        addOption("Touch Controls", getSettings().game.enableTouchControls,
+            "Enables controls overlay for touch screens.<br/><br/>Press and drag on the left side "
+            "of the screen to move, and on the right side of the screen to control the camera.");
+        auto& customizeTouchLayout = leftPane.add_button(ControlledButton::Props{
+            .text = "Customize Layout",
+            .isDisabled = [] { return !getSettings().game.enableTouchControls; },
+        });
+        leftPane.register_control(customizeTouchLayout.on_pressed(
+                                      [this] { push(std::make_unique<TouchControlsEditor>()); }),
+            rightPane, [](Pane& pane) {
+                pane.clear();
+                pane.add_text("Open the touch controls layout editor.");
+            });
+        config_percent_select(leftPane, rightPane, getSettings().game.touchCameraXSensitivity,
+            "Touch Camera X Sensitivity",
+            "Adjusts touch camera horizontal sensitivity.<br/><br/>Applies to touch input only.",
+            25, 400, 5, [] { return !getSettings().game.enableTouchControls; });
+        config_percent_select(leftPane, rightPane, getSettings().game.touchCameraYSensitivity,
+            "Touch Camera Y Sensitivity",
+            "Adjusts touch camera vertical sensitivity.<br/><br/>Applies to touch input only.", 25,
+            400, 5, [] { return !getSettings().game.enableTouchControls; });
+#endif
 
         leftPane.add_section("Camera");
         addOption("Free Camera", getSettings().game.freeCamera,
@@ -1012,6 +1080,8 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
             [] { return !getSettings().game.enableMouseAim || !getSettings().game.enableMouseCamera; });
 
         leftPane.add_section("Gameplay");
+        addOption("Mouse/Touch in Menus", getSettings().game.enableMenuPointer,
+            "Enables mouse and touch input for supported in-game menus.");
         addOption("Invert Air/Swim X Axis", getSettings().game.invertAirSwimX,
             "Invert horizontal movement while flying or swimming.");
         addOption("Invert Air/Swim Y Axis", getSettings().game.invertAirSwimY,
@@ -1272,8 +1342,38 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
             "Makes Link's roll animation and movement twice as fast.");
         addCheat("Fast Spinner", getSettings().game.fastSpinner,
             "Speeds up Spinner movement while holding R.");
-        addCheat("Free Magic Armor", getSettings().game.freeMagicArmor,
-            "Lets the magic armor work without consuming rupees.");
+        leftPane.register_control(
+            leftPane.add_select_button({
+                .key = "Magic Armor Behavior",
+                .getValue =
+                    [] {
+                        return kMagicArmorModes[static_cast<u8>(getSettings().game.armorRupeeDrain.getValue())];
+                    },
+                .isDisabled = [] { return getSettings().game.speedrunMode.getValue(); },
+                .isModified =
+                    [] {
+                        return getSettings().game.armorRupeeDrain.getValue() !=
+                               getSettings().game.armorRupeeDrain.getDefaultValue();
+                    },
+            }),
+            rightPane, [](Pane& pane) {
+                for (int i = 0; i < kMagicArmorModes.size(); i++) {
+                    pane.add_button({
+                            .text = kMagicArmorModes[i],
+                            .isSelected =
+                                [i] {
+                                    return getSettings().game.armorRupeeDrain.getValue() == static_cast<MagicArmorMode>(i);
+                                },
+                        })
+                        .on_pressed([i] {
+                            mDoAud_seStartMenu(kSoundItemChange);
+                            getSettings().game.armorRupeeDrain.setValue(static_cast<MagicArmorMode>(i));
+                            config::Save();
+                        });
+                }
+                pane.add_rml(
+                    "<br/>Control the behavior of the Magic Armor.");
+            });
         addCheat("Invincible Enemies", getSettings().game.invincibleEnemies,
             "Prevents enemies from taking damage.");
     });
@@ -1384,11 +1484,6 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                 .key = "Skip Dusklight Main Menu",
                 .helpText = "When starting Dusklight, skip the main menu and boot straight into the "
                             "game if a disc image is available.",
-            });
-        config_bool_select(leftPane, rightPane, getSettings().backend.showPipelineCompilation,
-            {
-                .key = "Show Pipeline Compilation",
-                .helpText = "Show an overlay when shaders are being compiled for your hardware.",
             });
         config_bool_select(leftPane, rightPane, getSettings().backend.checkForUpdates,
             {
