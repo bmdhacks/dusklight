@@ -28,4 +28,11 @@ bool LoadRelAsset(void* dst, const char* dvdPath, std::initializer_list<OffsetVe
  */
 bool LoadArchivedRelAsset(void* dst, u32 memType, const char* relFileName, std::initializer_list<OffsetVersion> offset, s32 size);
 
+#ifdef DUSK_TPHD
+/**
+ * Load bytes from the RPX by Wii U virtual address
+ */
+bool LoadRPXAsset(void* dst, uint32_t virtualAddress, s32 size);
+#endif
+
 }  // namespace dusk

@@ -371,11 +371,41 @@ JKRHeap* daPy_anmHeap_c::setAnimeHeap() {
 #include "dusk/dvd_asset.hpp"
 using GameVersion = dusk::version::GameVersion;
 static const u8* l_sightDL_get() { 
+#if DUSK_TPHD
+    if(dusk::tphd_active()) {
+        static u8 buf[0x89];
+        static bool _ = (
+            dusk::LoadRPXAsset(
+                buf,
+                0x1011a260,
+                0x89
+            ),
+            true
+        );
+        return buf;
+    }
+    else {
+        static u8 buf[0x89];
+        static bool _ = (
+            dusk::LoadDolAsset(
+                buf,
+                {
+                {GameVersion::GcnUsa, 0x803BA0C0},
+                {GameVersion::GcnPal, 0x803BBDA0},
+                {GameVersion::GcnJpn, 0x803B4220}
+                },
+                0x89
+            ),
+            true
+        );
+        return buf;
+    }
+#else
     static u8 buf[0x89];
     static bool _ = (
         dusk::LoadDolAsset(
             buf,
-{
+            {
             {GameVersion::GcnUsa, 0x803BA0C0},
             {GameVersion::GcnPal, 0x803BBDA0},
             {GameVersion::GcnJpn, 0x803B4220}
@@ -385,6 +415,7 @@ static const u8* l_sightDL_get() {
         true
     );
     return buf;
+#endif
 }
 #define l_sightDL (l_sightDL_get())
 #else

@@ -8,6 +8,11 @@
 
 #include <cstring>
 
+#ifdef DUSK_TPHD
+#include <zlib.h>
+#include <fstream>
+#endif
+
 namespace dusk {
 
 static const u8* s_dolData = nullptr; // pointer to dol data
@@ -135,5 +140,146 @@ bool LoadArchivedRelAsset(void* dst, u32 memType, const char* relFileName, std::
     std::memcpy(dst, rel + resOffset, size);
     return true;
 }
+
+#ifdef DUSK_TPHD
+enum struct SectionType : uint32_t // sh_type
+{
+    // https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
+    SHT_NULL = 0,
+    SHT_PROGBITS = 1,
+    SHT_SYMTAB = 2,
+    SHT_STRTAB = 3,
+    SHT_RELA = 4,
+    SHT_HASH = 5,
+    SHT_DYNAMIC = 6,
+    SHT_NOTE = 7,
+    SHT_NOBITS = 8,
+    SHT_REL = 9,
+    SHT_SHLIB = 10,
+    SHT_DYNSYM = 11,
+    SHT_INIT_ARRAY = 14,
+    SHT_FINI_ARRAY = 15,
+    SHT_PREINIT_ARRAY = 16,
+    SHT_GROUP = 17,
+    SHT_SYMTAB_SHNDX = 18,
+
+    // https://refspecs.linuxfoundation.org/LSB_2.1.0/LSB-Core-generic/LSB-Core-generic/elftypes.html
+    SHT_LOPROC = 0x70000000,
+    SHT_HIPROC = 0x7fffffff,
+    SHT_LOUSER = 0x80000000,
+    SHT_HIUSER = 0xffffffff,
+
+    // from https://gist.github.com/exjam/b4290ad23828cbc04db4 and looking at the rpx itself
+    SHT_RPL_EXPORTS = 0x80000001,
+    SHT_RPL_IMPORTS = 0x80000002,
+    SHT_RPL_CRCS = 0x80000003,
+    SHT_RPL_FILEINFO = 0x80000004
+};
+
+enum struct SectionFlags : uint32_t {
+    // https://en.wikipedia.org/wiki/Executable_and_Linkable_Format
+    SHF_WRITE = 0x1,
+    SHF_ALLOC = 0x2,
+    SHF_EXECINSTR = 0x4,
+
+    // from https://gist.github.com/exjam/b4290ad23828cbc04db4 and looking at the rpx itself
+    SHF_DEFLATED = 0x08000000
+};
+
+struct Elf32_Ehdr {
+    uint8_t e_ident[0x10];
+    BE(u16) e_type;
+    BE(u16) e_machine;
+    BE(u32) e_version;
+    BE(u32) e_entry;
+    BE(u32) e_phoff;
+    BE(u32) e_shoff;
+    BE(u32) e_flags;
+    BE(u16) e_ehsize;
+    BE(u16) e_phentsize;
+    BE(u16) e_phnum;
+    BE(u16) e_shentsize;
+    BE(u16) e_shnum;
+    BE(u16) e_shstrndx;
+};
+
+struct Elf32_Shdr {
+    BE(u32) sh_name;
+    BE(u32) sh_type; // SectionType
+    BE(u32) sh_flags;
+    BE(u32) sh_addr;
+    BE(u32) sh_offset;
+    BE(u32) sh_size;
+    BE(u32) sh_link;
+    BE(u32) sh_info;
+    BE(u32) sh_addralign;
+    BE(u32) sh_entsize;
+};
+
+struct RPXSection {
+    u32 vaddr;
+    std::string data;
+};
+
+static std::vector<RPXSection> g_rpxSections;
+
+static bool EnsureRPXParsed() {
+    if (!g_rpxSections.empty()) return true;
+
+    std::ifstream rpx(dusk::tphd_content_path().parent_path() / "code" / "Zelda.rpx", std::ios::binary);
+    if (!rpx.is_open()) {
+        DuskLog.fatal("dvd_asset: Failed to open Zelda.rpx");
+        return false;
+    }
+
+    Elf32_Ehdr ehdr;
+    rpx.read(reinterpret_cast<char*>(&ehdr), sizeof(ehdr));
+
+    for (int i = 0; i < ehdr.e_shnum; i++) {
+        rpx.seekg(ehdr.e_shoff + ehdr.e_shentsize * i, std::ios::beg);
+
+        Elf32_Shdr shdr;
+        rpx.read(reinterpret_cast<char*>(&shdr), sizeof(shdr));
+
+        if(shdr.sh_addr != 0 && shdr.sh_offset != 0 && (shdr.sh_type & ((int)SectionType::SHT_NULL | (int)SectionType::SHT_NOBITS)) == 0) {
+            rpx.seekg(shdr.sh_offset, std::ios::beg);
+
+            RPXSection& section = g_rpxSections.emplace_back();
+            section.vaddr = shdr.sh_addr;
+
+            if(shdr.sh_flags & (int)SectionFlags::SHF_DEFLATED) {
+                BE(u32) size;
+                std::string inData(shdr.sh_size - 4, '\0');
+                rpx.read(reinterpret_cast<char*>(&size), sizeof(size));
+                rpx.read(inData.data(), inData.size());
+
+                section.data.resize(size);
+
+                unsigned long outSize = section.data.size();
+                uncompress(reinterpret_cast<unsigned char*>(section.data.data()), &outSize, reinterpret_cast<unsigned char*>(inData.data()), inData.size());
+            }
+            else {
+                section.data.resize(shdr.sh_size);
+                rpx.read(section.data.data(), section.data.size());
+            }
+        }
+    }
+
+    return true;
+}
+
+bool LoadRPXAsset(void* dst, uint32_t virtualAddress, s32 size) {
+    if(!EnsureRPXParsed()) return false;
+
+    const auto& it = std::ranges::find_if(g_rpxSections, [virtualAddress, size](const RPXSection& section) { return section.vaddr <= virtualAddress && virtualAddress + size <= section.vaddr + section.data.size(); });
+    if(it == g_rpxSections.end()) {
+        return false;
+    }
+
+    it->data.copy(static_cast<char*>(dst), size, virtualAddress - it->vaddr);
+
+    return true;
+}
+#endif
 
 }  // namespace dusk
