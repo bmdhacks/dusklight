@@ -455,10 +455,12 @@ void registerHdSurface(const Gx2FormatMapping& m, const GtxSurface& s,
     std::lock_guard lk{g_cacheMutex};
     g_textureBuffers().emplace_back(std::move(decoded.bytes));
     const auto& bytes = g_textureBuffers().back();
+    const u32 texWidth  = m.isBcn ? ((s.width  + 3u) & ~3u) : s.width;
+    const u32 texHeight = m.isBcn ? ((s.height + 3u) & ~3u) : s.height;
     const aurora::texture::RawTextureReplacement replacement{
         .bytes = {bytes.data(), bytes.size()},
-        .width = s.width,
-        .height = s.height,
+        .width = texWidth,
+        .height = texHeight,
         .mipCount = std::max(decoded.mipCount, 1u),
         .gxFormat = m.newGxFormat,
         .label = gtxName,
