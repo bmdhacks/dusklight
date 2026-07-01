@@ -58,12 +58,9 @@
 #include "res/Object/Alink.h"
 #include <cstring>
 #include <dusk/string.hpp>
-#endif
-
+#include "dusk/cosmetics/color_utils.hpp"
 #include "dusk/randomizer/game/flags.h"
 #include "dusk/randomizer/game/stages.h"
-
-#if TARGET_PC
 #include "dusk/randomizer/game/tools.h"
 #endif
 
@@ -4238,6 +4235,25 @@ int daAlink_c::createHeap() {
     if (mpHIO == NULL) {
         return 0;
     }
+#if TARGET_PC
+    const auto& lanternColor = dusk::getSettings().cosmetics.lanternGlowColor.getValue();
+    if (dusk::cosmetics::is_valid_hex_color_str(lanternColor)) {
+        u8 r = std::stoi(lanternColor.substr(0, 2), nullptr, 16);
+        u8 g = std::stoi(lanternColor.substr(2, 2), nullptr, 16);
+        u8 b = std::stoi(lanternColor.substr(4, 2), nullptr, 16);
+        auto& lanternAmbience = mpHIO->mItem.mLanternPL.m;
+        auto& lanternSphere = mpHIO->mItem.mLantern.m;
+        lanternAmbience.mColorR = r;
+        lanternAmbience.mColorG = g;
+        lanternAmbience.mColorB = b;
+        lanternSphere.mColorReg1R = r;
+        lanternSphere.mColorReg1G = g;
+        lanternSphere.mColorReg1B = b;
+        lanternSphere.mColorReg2R = r;
+        lanternSphere.mColorReg2G = g;
+        lanternSphere.mColorReg2B = b;
+    }
+#endif
 
     if (!(mpWlChangeModel = initModel(dRes_ID_ALINK_BMD_WL_CHANGE_e, 0))) {
         return 0;

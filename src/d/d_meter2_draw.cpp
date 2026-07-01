@@ -20,10 +20,11 @@
 #include "d/d_msg_class.h"
 #include "d/d_msg_object.h"
 #include "d/d_pane_class.h"
-#include "dusk/frame_interpolation.h"
 #include <cstring>
 
 #if TARGET_PC
+#include "dusk/cosmetics/color_utils.hpp"
+#include "dusk/frame_interpolation.h"
 #include "dusk/settings.h"
 #include "dusk/ui/icon_provider.hpp"
 #include <algorithm>
@@ -1676,8 +1677,39 @@ void dMeter2Draw_c::drawKanteraScreen(u8 i_meterType) {
         mpMagicMeter->setBlackWhite(black, mpMagicMeter->getInitWhite());
         setAlphaMagicChange(true);
     } else if (i_meterType == 1) {
-        mpMagicMeter->setBlackWhite(JUtility::TColor(255, 255, 140, 255),
-                                    JUtility::TColor(230, 170, 0, 255));
+#if TARGET_PC
+        // Apply custom lantern glow if necessary
+        const auto& lanternColorStr = dusk::getSettings().cosmetics.lanternGlowColor.getValue();
+        auto lv = &daAlink_getAlinkActorClass()->mpHIO->mItem.mLantern.m;
+        auto hlv = &daAlink_getAlinkActorClass()->mpHIO->mItem.mLanternPL.m;
+        if (dusk::cosmetics::is_valid_hex_color_str(lanternColorStr)) {
+            auto color = dusk::cosmetics::hex_color_str_to_gx_color(lanternColorStr);
+            mpMagicMeter->setBlackWhite(JUtility::TColor(color.r, color.g, color.b, 255),
+                                    JUtility::TColor(color.r, color.g, color.b, 255));
+        } else if (lanternColorStr == "Rainbow") {
+            GXColor color = dusk::cosmetics::get_rainbow_rgb(127.5f);
+            lv->mColorReg1R = color.r / 2;
+            lv->mColorReg1G = color.g / 2;
+            lv->mColorReg1B = color.b / 2;
+            lv->mColorReg2R = color.r / 2;
+            lv->mColorReg2G = color.g / 2;
+            lv->mColorReg2B = color.b / 2;
+            hlv->mColorR = color.r / 2;
+            hlv->mColorG = color.g / 2;
+            hlv->mColorB = color.b / 2;
+
+            mpMagicMeter->setBlackWhite(JUtility::TColor(color.r/2, color.g/2, color.b/2, 255),
+                                JUtility::TColor(color.r/2, color.g/2, color.b/2, 255));
+        } else {
+            // Set back original colors if no valid cosmetic choice
+            *lv = daAlink_getAlinkActorClass()->mpHIO->mItem.mLantern.original;
+            *hlv = daAlink_getAlinkActorClass()->mpHIO->mItem.mLanternPL.original;
+#endif
+            mpMagicMeter->setBlackWhite(JUtility::TColor(255, 255, 140, 255),
+                                        JUtility::TColor(230, 170, 0, 255));
+#if TARGET_PC
+        }
+#endif
         setAlphaKanteraChange(true);
     } else if (i_meterType == 2) {
         f32 oxygen_percent = (f32)dComIfGp_getOxygen() / (f32)dComIfGp_getMaxOxygen();

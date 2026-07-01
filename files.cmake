@@ -1487,6 +1487,8 @@ set(DUSK_FILES
         src/dusk/ui/controls.hpp
         src/dusk/ui/controller_config.cpp
         src/dusk/ui/controller_config.hpp
+        src/dusk/ui/cosmetics.hpp
+        src/dusk/ui/cosmetics.cpp
         src/dusk/ui/document.cpp
         src/dusk/ui/document.hpp
         src/dusk/ui/editor.cpp
@@ -1555,6 +1557,10 @@ set(DUSK_FILES
         src/dusk/discord_presence.cpp
         src/dusk/version.cpp
         src/dusk/action_bindings.cpp
+        src/dusk/cosmetics/color_utils.hpp
+        src/dusk/cosmetics/color_utils.cpp
+        src/dusk/cosmetics/texture_utils.hpp
+        src/dusk/cosmetics/texture_utils.cpp
         # Randomizer files
         src/dusk/randomizer/game/flags.cpp
         src/dusk/randomizer/game/flags.h

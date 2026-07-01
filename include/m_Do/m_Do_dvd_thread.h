@@ -67,6 +67,10 @@ public:
 
     JKRMemArchive* getArchive() const { return mArchive; }
     JKRHeap* getHeap() const { return mHeap; }
+#if TARGET_PC
+    s32 getEntryNumber() const { return mEntryNumber; }
+#endif
+
 
 private:
     /* 0x14 */ u8 mMountDirection;

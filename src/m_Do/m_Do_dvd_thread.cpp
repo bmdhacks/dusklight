@@ -16,6 +16,10 @@
 #include "m_Do/m_Do_ext.h"
 #include "os_report.h"
 
+#if TARGET_PC
+#include "dusk/cosmetics/texture_utils.hpp"
+#endif
+
 s32 mDoDvdThd::main(void* param_0) {
     JKRThread(OSGetCurrentThread(), 0);
 #if TARGET_PC
@@ -314,6 +318,9 @@ s32 mDoDvdThd_mountArchive_c::execute() {
         }
 #endif
     }
+#if TARGET_PC
+    dusk::cosmetics::handle_texture_overrides_on_load(this);
+#endif
     mIsDone = true;
     return mArchive != NULL;
 }

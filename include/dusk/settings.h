@@ -46,6 +46,12 @@ enum class FrameInterpMode : u8 {
     Unlimited = 2,
 };
 
+enum class TouchTargeting : u8 {
+    Hybrid = 0,
+    Hold = 1,
+    Switch = 2,
+};
+
 enum class MenuScaling : u8 {
     GameCube = 0,
     Wii = 1,
@@ -95,6 +101,12 @@ template <>
 struct ConfigEnumRange<FrameInterpMode> {
     static constexpr auto min = FrameInterpMode::Off;
     static constexpr auto max = FrameInterpMode::Unlimited;
+};
+
+template <>
+struct ConfigEnumRange<TouchTargeting> {
+    static constexpr auto min = TouchTargeting::Hybrid;
+    static constexpr auto max = TouchTargeting::Switch;
 };
 
 template <>
@@ -216,6 +228,7 @@ struct UserSettings {
         ConfigVar<bool> invertMouseY;
         ConfigVar<bool> freeCamera;
         ConfigVar<bool> enableTouchControls;
+        ConfigVar<TouchTargeting> touchTargeting;
         ConfigVar<bool> enableMenuPointer;
         ConfigVar<ui::ControlLayout> touchControlsLayout;
         ConfigVar<bool> invertCameraXAxis;
@@ -304,6 +317,29 @@ struct UserSettings {
         ConfigVar<std::string> serverPass;
         ConfigVar<std::string> slotName;
     } archipelago;
+
+    // Cosmetics
+    struct {
+        ConfigVar<std::string> herosTunicCapColor;
+        ConfigVar<std::string> herosTunicTorsoColor;
+        ConfigVar<std::string> herosTunicSkirtColor;
+        ConfigVar<std::string> zoraArmorCapColor;
+        ConfigVar<std::string> zoraArmorHelmetColor;
+        ConfigVar<std::string> zoraArmorTorsoColor;
+        ConfigVar<std::string> zoraArmorScalesColor;
+        ConfigVar<std::string> zoraArmorFlippersColor;
+        ConfigVar<std::string> lanternGlowColor;
+        ConfigVar<std::string> woodenSwordColor;
+        ConfigVar<std::string> msBladeColor;
+        ConfigVar<std::string> msHandleColor;
+        ConfigVar<std::string> lightSwordGlowColor;
+        ConfigVar<std::string> boomerangColor;
+        ConfigVar<std::string> ironBootsColor;
+        ConfigVar<std::string> spinnerColor;
+        ConfigVar<std::string> linkHairColor;
+        ConfigVar<std::string> wolfLinkColor;
+        ConfigVar<std::string> eponaColor;
+    } cosmetics;
 };
 
 UserSettings& getSettings();
