@@ -79,7 +79,7 @@ void HandleArchipelagoConnect() {
         archi::ArchipelagoContext::DisconnectFromServer();
     }
 
-    if (!archi::ArchipelagoContext::ConnectToServer(true)) {
+    if (!archi::ArchipelagoContext::ConnectToServer(dComIfGs_getDataNum(), true)) {
         archi::ArchipelagoContext::DisconnectFromServer();
         connectStatus.store(ArchiConnectModal::ConnectionStatus::Error);
         return;
@@ -118,9 +118,11 @@ void CreateSetupConnectionInfoModal() {
                 .onPressed = [](Modal& modal) {
                     auto textModal = dynamic_cast<MultiTextInputModal*>(&modal);
 
-                    archi::ArchipelagoContext::SetServerIp(textModal->get_input_text(0));
-                    archi::ArchipelagoContext::SetPassword(textModal->get_input_text(1));
-                    archi::ArchipelagoContext::SetSlotName(textModal->get_input_text(2));
+                    int dataNum = dComIfGs_getDataNum();
+
+                    archi::ArchipelagoContext::SetServerIp(textModal->get_input_text(0), dataNum);
+                    archi::ArchipelagoContext::SetPassword(textModal->get_input_text(1), dataNum);
+                    archi::ArchipelagoContext::SetSlotName(textModal->get_input_text(2), dataNum);
 
                     modal.pop(false);
 
@@ -141,9 +143,11 @@ void CreateSetupConnectionInfoModal() {
     }));
     auto inputModal = dynamic_cast<MultiTextInputModal*>(&doc);
 
-    inputModal->add_input_text("Server IP", archi::ArchipelagoContext::GetServerIp());
-    inputModal->add_input_text("Password", archi::ArchipelagoContext::GetPassword());
-    inputModal->add_input_text("Slot Name", archi::ArchipelagoContext::GetSlotName());
+    int dataNum = dComIfGs_getDataNum();
+
+    inputModal->add_input_text("Server IP", archi::ArchipelagoContext::GetServerIp(dataNum));
+    inputModal->add_input_text("Password", archi::ArchipelagoContext::GetPassword(dataNum));
+    inputModal->add_input_text("Slot Name", archi::ArchipelagoContext::GetSlotName(dataNum));
 }
 
 void BeginArchipelagoConnectionUI(bool forceChangeConnection) {
@@ -152,8 +156,8 @@ void BeginArchipelagoConnectionUI(bool forceChangeConnection) {
         return;
     }
 
-    // TODO: associate server connection info to save slots
-    bool hasConnectInfo = (!archi::ArchipelagoContext::GetServerIp().empty() && !archi::ArchipelagoContext::GetSlotName().empty());
+    int dataNum = dComIfGs_getDataNum();
+    bool hasConnectInfo = (!archi::ArchipelagoContext::GetServerIp(dataNum).empty() && !archi::ArchipelagoContext::GetSlotName(dataNum).empty());
 
     if (hasConnectInfo) {
         ConnectAndLoadArchipelago();

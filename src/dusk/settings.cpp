@@ -214,9 +214,21 @@ UserSettings g_userSettings = {
     },
     
     .archipelago = {
-        .serverIP {"archipelago.serverIP", "archipelago.gg"},
-        .serverPass {"archipelago.serverPass", ""},
-        .slotName {"archipelago.slotName", ""},
+        {
+            ConfigVar<std::string>{"archipelago.serverIP_file1", "archipelago.gg"},
+            ConfigVar<std::string>{"archipelago.serverIP_file2", "archipelago.gg"},
+            ConfigVar<std::string>{"archipelago.serverIP_file3", "archipelago.gg"}
+        },
+        {
+            ConfigVar<std::string>{"archipelago.serverPass_file1", ""},
+            ConfigVar<std::string>{"archipelago.serverPass_file2", ""},
+            ConfigVar<std::string>{"archipelago.serverPass_file3", ""}
+        },
+        {
+            ConfigVar<std::string>{"archipelago.slotName_file1", ""},
+            ConfigVar<std::string>{"archipelago.slotName_file2", ""},
+            ConfigVar<std::string>{"archipelago.slotName_file3", ""}
+        }
     },
 
     .cosmetics = {
@@ -414,9 +426,17 @@ void registerSettings() {
     Register(g_userSettings.randomizer.seedHashes[1]);
     Register(g_userSettings.randomizer.seedHashes[2]);
     
-    Register(g_userSettings.archipelago.serverIP);
-    Register(g_userSettings.archipelago.serverPass);
-    Register(g_userSettings.archipelago.slotName);
+    Register(g_userSettings.archipelago.savesServerIP[0]);
+    Register(g_userSettings.archipelago.savesServerIP[1]);
+    Register(g_userSettings.archipelago.savesServerIP[2]);
+
+    Register(g_userSettings.archipelago.savesServerPass[0]);
+    Register(g_userSettings.archipelago.savesServerPass[1]);
+    Register(g_userSettings.archipelago.savesServerPass[2]);
+
+    Register(g_userSettings.archipelago.savesSlotName[0]);
+    Register(g_userSettings.archipelago.savesSlotName[1]);
+    Register(g_userSettings.archipelago.savesSlotName[2]);
 
     Register(g_userSettings.cosmetics.herosTunicCapColor);
     Register(g_userSettings.cosmetics.herosTunicTorsoColor);

@@ -318,28 +318,28 @@ bool ArchipelagoContext::tryKillPlayer() {
 
 ArchipelagoContext::ArchipelagoContext() = default;
 
-void ArchipelagoContext::SetServerIp(const std::string_view& ip) {
-    getSettings().archipelago.serverIP.setValue(std::string(ip));
+void ArchipelagoContext::SetServerIp(const std::string_view& ip, int file) {
+    getSettings().archipelago.savesServerIP[file].setValue(std::string(ip));
 }
 
-void ArchipelagoContext::SetSlotName(const std::string_view& name) {
-    getSettings().archipelago.slotName.setValue(std::string(name));
+void ArchipelagoContext::SetSlotName(const std::string_view& name, int file) {
+    getSettings().archipelago.savesSlotName[file].setValue(std::string(name));
 }
 
-void ArchipelagoContext::SetPassword(const std::string_view& pass) {
-    getSettings().archipelago.serverPass.setValue(std::string(pass));
+void ArchipelagoContext::SetPassword(const std::string_view& pass, int file) {
+    getSettings().archipelago.savesServerPass[file].setValue(std::string(pass));
 }
 
-const std::string& ArchipelagoContext::GetServerIp() {
-    return getSettings().archipelago.serverIP.getValue();
+const std::string& ArchipelagoContext::GetServerIp(int file) {
+    return getSettings().archipelago.savesServerIP[file].getValue();
 }
 
-const std::string& ArchipelagoContext::GetSlotName() {
-    return getSettings().archipelago.slotName.getValue();
+const std::string& ArchipelagoContext::GetSlotName(int file) {
+    return getSettings().archipelago.savesSlotName[file].getValue();
 }
 
-const std::string& ArchipelagoContext::GetPassword() {
-    return getSettings().archipelago.serverPass.getValue();
+const std::string& ArchipelagoContext::GetPassword(int file) {
+    return getSettings().archipelago.savesServerPass[file].getValue();
 }
 
 std::string ArchipelagoContext::GetArchipelagoSeedName() {
@@ -366,7 +366,7 @@ bool ArchipelagoContext::IsCurrentSeedHash(const std::string& seedStr) {
     return GetArchipelagoSeedName() == seedStr;
 }
 
-bool ArchipelagoContext::ConnectToServer(bool isBlocking) {
+bool ArchipelagoContext::ConnectToServer(int file, bool isBlocking) {
     config::Save();
 
     instance().LoadTempItemInfo();
@@ -377,7 +377,7 @@ bool ArchipelagoContext::ConnectToServer(bool isBlocking) {
        DuskLog.info("{}", msg);
     });
 
-    AP_Init(GetServerIp().c_str(), "Twilight Princess", GetSlotName().c_str(), GetPassword().c_str());
+    AP_Init(GetServerIp(file).c_str(), "Twilight Princess", GetSlotName(file).c_str(), GetPassword(file).c_str());
 
     AP_NetworkVersion ver{0, 6,7};
     AP_SetClientVersion(&ver);

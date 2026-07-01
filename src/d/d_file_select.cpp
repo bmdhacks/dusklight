@@ -1451,6 +1451,9 @@ void dFile_select_c::selectDataPlayTypeMove() {
                 dusk::ui::ModalAction{
                 .label = "Archipelago",
                 .onPressed = [this](dusk::ui::Modal& modal) {
+                    // pre-emptively set file num here for context to use
+                    dComIfGs_setDataNum(mSelectNum);
+
                     mDusk.mBackToFileSelect = false;
                     mDoAud_seStartMenu(Z2SE_SY_CURSOR_OK);
                     modal.hide(true);
@@ -1484,6 +1487,9 @@ void dFile_select_c::selectDataPlayTypeMove() {
 
 void dFile_select_c::menuArchipelagoConnect() {
     if (mDusk.mArchipelagoBeginConnect) {
+        // set file num here for context to use
+        dComIfGs_setDataNum(mSelectNum);
+
         dusk::ui::BeginArchipelagoConnectionUI();
         mDusk.mArchipelagoBeginConnect = false;
         mDusk.mPendingRmlCloseFrames = 6;

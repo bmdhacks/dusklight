@@ -313,9 +313,9 @@ struct UserSettings {
     
     // Archipelago Settings
     struct {
-        ConfigVar<std::string> serverIP;
-        ConfigVar<std::string> serverPass;
-        ConfigVar<std::string> slotName;
+        std::array<ConfigVar<std::string>, 3> savesServerIP;
+        std::array<ConfigVar<std::string>, 3> savesServerPass;
+        std::array<ConfigVar<std::string>, 3> savesSlotName;
     } archipelago;
 
     // Cosmetics

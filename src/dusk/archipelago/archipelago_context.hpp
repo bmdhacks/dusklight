@@ -67,13 +67,13 @@ namespace dusk::archi
 
         // Config Getters/Setters
 
-        static void SetServerIp(const std::string_view& ip);
-        static void SetSlotName(const std::string_view& name);
-        static void SetPassword(const std::string_view& pass);
+        static void SetServerIp(const std::string_view& ip, int file);
+        static void SetSlotName(const std::string_view& name, int file);
+        static void SetPassword(const std::string_view& pass, int file);
 
-        static const std::string& GetServerIp();
-        static const std::string& GetSlotName();
-        static const std::string& GetPassword();
+        static const std::string& GetServerIp(int file);
+        static const std::string& GetSlotName(int file);
+        static const std::string& GetPassword(int file);
 
         static std::string GetArchipelagoSeedName();
 
@@ -85,7 +85,7 @@ namespace dusk::archi
 
         // Connection Handlers
 
-        static bool ConnectToServer(bool isBlocking = false);
+        static bool ConnectToServer(int file, bool isBlocking = false);
 
         static void DisconnectFromServer();
 
