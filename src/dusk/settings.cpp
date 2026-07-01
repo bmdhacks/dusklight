@@ -217,6 +217,7 @@ UserSettings g_userSettings = {
         .serverIP {"archipelago.serverIP", "archipelago.gg"},
         .serverPass {"archipelago.serverPass", ""},
         .slotName {"archipelago.slotName", ""},
+    },
 
     .cosmetics = {
         .herosTunicCapColor = {"cosmetics.hatColor", ""},
