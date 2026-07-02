@@ -239,7 +239,7 @@ void ArchipelagoContext::LoadTempLocationInfo() {
 
 void ArchipelagoContext::itemRecvImpl(int id, bool notify) {
     if (!m_apItemToGameItem.contains(id)) {
-        DuskLog.warn("Got an invalid Item Id: {}", id);
+        DuskLog.warn("[AP] Got an invalid Item Id: {}", id);
         return;
     }
 
@@ -345,6 +345,9 @@ const std::string& ArchipelagoContext::GetPassword(int file) {
 std::string ArchipelagoContext::GetArchipelagoSeedName() {
     if (IsConnected()) {
         auto& roomInfo = instance().m_roomInfo;
+        if (roomInfo.seed_name.empty()) {
+            DuskLog.warn("Got an invalid Seed Name!");
+        }
         return fmt::format("AP_{}", roomInfo.seed_name);
     }else {
         DuskLog.fatal("Archipelago was not connected when attempting to get seed name!");
@@ -506,12 +509,13 @@ void ArchipelagoContext::Execute() {
 void ArchipelagoContext::HandleItemReceived(AP_NetworkItem& netItem, bool notify) {
     int relativeId = netItem.item - ARCHI_ITEM_OFFSET;
 
+    // TODO: modify this to also include junk items like ammo
     if (!notify && ((relativeId >= 0 && relativeId <= 6) || relativeId == 7)) {
         // skip rupee refills so players cant abuse disconnect/reconnect
         return;
     }
 
-    if (netItem.location != -1 && IsLocationChecked(netItem.location)) {
+    if (!instance().m_isNeedResetInv && netItem.location != -1 && IsLocationChecked(netItem.location)) {
         // no need to handle item if its location has already been checked
         return;
     }
@@ -537,6 +541,10 @@ void ArchipelagoContext::HandleResetInventory() {
     playerInfo.getPlayerStatusA().setMaxLife(15);
     playerInfo.getPlayerStatusA().setWalletSize(WALLET);
     // dont reset rupees, and instead reject rupee updates while refilling inv
+
+    // add back default items
+
+    execItemGet(dItemNo_WEAR_KOKIRI_e);
 
     // sync all location collect flags with current collection status obtained from initial room connection
     UpdateAllLocationState();
@@ -706,6 +714,7 @@ void ArchipelagoContext::UpdateLocationState(int locId, bool collected) {
 
 void ArchipelagoContext::UpdateAllLocationState() {
     auto& world = instance().m_archiWorld;
+    // TODO: find out why some locations seem to keep their collection state upon reset (bugs)
 
     for (const auto& [locName, locInfo] : instance().m_locationItemInfo) {
         auto location = world->GetLocation(locInfo.locationName, true);
