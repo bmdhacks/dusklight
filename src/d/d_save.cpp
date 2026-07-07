@@ -1823,7 +1823,7 @@ int dSv_info_c::memory_to_card(char* card_ptr, int dataNum) {
         savedata->getPlayer().getPlayerInfo().setTotalTime(play_time);
     }
 
-    savedata->getPlayer().getPlayerStatusB().setDateIpl(OSGetTime());
+    savedata->getPlayer().getPlayerStatusB().setDateIpl(DUSK_IF_ELSE(OSGetSystemTime(), OSGetTime()));
 
     memcpy(card_ptr, savedata, sizeof(dSv_save_c));
     card_ptr += 0x958;
