@@ -1,0 +1,71 @@
+--- a/src/dawn/native/opengl/SwapChainEGL.cpp
++++ b/src/dawn/native/opengl/SwapChainEGL.cpp
+@@ -236,12 +236,31 @@
+     EGLDisplay display = PortmasterSdl2ShimDisplayOrDefault(portmasterSurface, device->GetEGLDisplay());
+     const EGLFunctions& egl = device->GetEGL(false);
+ 
+-    // Do the reverse-Y blit from the fake surface texture to the default framebuffer.
+-    auto blitToSurface = [&]() -> MaybeError {
++    // Dusklight (P4): drive the whole present (blit + swap + swapchain-texture destroy) through a
++    // *scoped* make-current instead of the legacy device->GetGL() (which calls DeprecatedMakeCurrent
++    // and leaves the EGL context bound to the presenting thread forever). This is the only
++    // makeCurrent=true site in the GL backend, so routing it through ContextEGL::ScopedMakeCurrent
++    // means every GL access now goes through the exclusive-make-current mutex. Under the
++    // gl_allow_context_on_multi_threads toggle the context is released when the scope ends, letting
++    // Aurora's game/decode thread run its own (cache-miss) GL while the render worker owns
++    // presentation. With the toggle off it's a no-op release, so single-threaded behaviour is
++    // unchanged.
++    //
++    // Everything that touches GL must stay INSIDE the scope: while it is active,
++    // IsInScopedMakeCurrent() is true, so nested MakeCurrent() calls (e.g. the swapchain texture's
++    // deferred delete via APIDestroy) are no-ops that reuse the already-current context. Do not call
++    // scopedCurrent.End() early and then do more GL — End() releases the context but the exclusive
++    // mutex is only unlocked when the ScopedMakeCurrent is destroyed, so a later GL call on this
++    // thread would self-deadlock re-acquiring it.
++    {
+         auto surfaceCurrent = device->GetContext()->SetCurrentSurfaceScope(mEGLSurface);
+         if (portmasterSurface != nullptr && !PortmasterSdl2ShimDawnContextPresent(portmasterSurface)) {
+             PortmasterMakeCurrentSdl2Shim(portmasterSurface);
+         }
++        ContextEGL::ScopedMakeCurrent scopedCurrent;
++        DAWN_TRY_ASSIGN(scopedCurrent, device->GetContext()->MakeCurrent());
++        const OpenGLFunctions& gl = device->GetGL(false);
++
+         EGLint surfaceWidth;
+         EGLint surfaceHeight;
+         if (portmasterSurface != nullptr) {
+@@ -257,8 +276,6 @@
+                               "getting surface height"));
+         }
+ 
+-        const OpenGLFunctions& gl = device->GetGL();
+-
+         GLuint readFbo = 0;
+         DAWN_GL_TRY(gl, GenFramebuffers(1, &readFbo));
+         DAWN_GL_TRY(gl, BindFramebuffer(GL_READ_FRAMEBUFFER, readFbo));
+@@ -271,16 +288,16 @@
+                                         surfaceWidth, 0, GL_COLOR_BUFFER_BIT, GL_LINEAR));
+ 
+         DAWN_GL_TRY(gl, DeleteFramebuffers(1, &readFbo));
+-        return {};
+-    };
+-    DAWN_TRY(blitToSurface());
+-
+-    if (!PortmasterPresentSdl2Shim(portmasterSurface)) {
+-        egl.SwapBuffers(display, mEGLSurface);
+-    }
+ 
+-    mTexture->APIDestroy();
+-    mTexture = nullptr;
++        if (!PortmasterPresentSdl2Shim(portmasterSurface)) {
++            egl.SwapBuffers(display, mEGLSurface);
++        }
++
++        // Destroy the swapchain texture while the context is still current so its deferred GL
++        // delete runs immediately here (no re-acquire of the make-current mutex).
++        mTexture->APIDestroy();
++        mTexture = nullptr;
++    }  // scopedCurrent destroyed here → releases the context and unlocks the make-current mutex.
+ 
+     return {};
+ }
