@@ -408,6 +408,10 @@ const Rml::String kUnlockFramerateHelpText =
     "visual artifacts or animation glitches.";
 const Rml::String kTextureReplacementHelpText =
     "Enable installed texture replacements.";
+const Rml::String kFullSpeedClockHelpText =
+    "<br/>Keeps the game running at full speed on hardware that cannot render 30 frames per second, "
+    "by skipping rendering rather than slowing the game down.<br/><br/>Has no effect unless Unlock "
+    "Framerate is off.";
 
 int float_setting_percent(ConfigVar<float>& var) {
     return static_cast<int>(var.getValue() * 100.0f + 0.5f);
@@ -958,6 +962,16 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
             "Framerate Cap", "Limit the framerate to the specified value.", 30, 540, 1,
             [] { return getSettings().game.enableFrameInterpolation.getValue() != FrameInterpMode::Capped; },
             [](int) { android::update_surface_frame_rate(); });
+        config_bool_select(leftPane, rightPane, getSettings().video.decoupleSimFromRender,
+            {
+                .key = "Full-Speed Clock",
+                .helpText = kFullSpeedClockHelpText,
+                .isDisabled =
+                    [] {
+                        return getSettings().game.enableFrameInterpolation.getValue() !=
+                               FrameInterpMode::Off;
+                    },
+            });
         config_bool_select(leftPane, rightPane, getSettings().game.enableMapBackground,
             {
                 .key = "Enable Mini-Map Shadows",

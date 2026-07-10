@@ -319,6 +319,30 @@ void main01(void) {
             cAPIGph_Painter();
             dusk::frame_interp::end_presentation_camera();
             dusk::frame_interp::set_ui_tick_pending(false);
+        } else if (pacing.is_decoupled) {
+            // Run the sim against the wall clock, then paint once. Ticks past the first build their
+            // draw lists and are overwritten by the next tick, so they never reach the painter and
+            // never upload anything to the GPU -- the render rate floats free of the game clock.
+            dusk::frame_interp::begin_frame(dusk::FrameInterpMode::Off, true, 0.0f);
+            dusk::frame_interp::set_ui_tick_pending(true);
+
+            for (int sim_tick = 0; sim_tick < pacing.sim_ticks_to_run; ++sim_tick) {
+                // Game Inputs
+                mDoCPd_c::read();
+                dusk::mouse::read();
+                dusk::gyro::read(pacing.sim_pace);
+
+                fapGm_Execute();
+                mDoAud_Execute();
+
+                // The painter is hoisted out of fpcM_Management below, so the state machines living
+                // inside it have to be stepped here instead -- once per tick, not once per paint.
+                dusk::game_clock::advance_paint_side_calcs();
+                dusk::game_clock::commit_sim_tick();
+            }
+
+            // This calls mDoGph_Painter -> JFWDisplay -> GX Functions
+            cAPIGph_Painter();
         } else {
             dusk::frame_interp::begin_frame(dusk::FrameInterpMode::Off, true, 0.0f);
             dusk::frame_interp::set_ui_tick_pending(true);

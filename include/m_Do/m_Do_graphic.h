@@ -91,6 +91,7 @@ public:
     static void fadeOut_f(f32, GXColor&);
     static void onBlure(const Mtx);
     static void onBlure();
+    static void advanceFade();
     static void calcFade();
 
     static void fadeIn(f32 fadeSpeed) {
