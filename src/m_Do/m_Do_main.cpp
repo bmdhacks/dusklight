@@ -632,6 +632,12 @@ int game_main(int argc, char* argv[]) {
         config.pauseOnFocusLost = dusk::getSettings().game.pauseOnFocusLost;
         config.imGuiInitCallback = &aurora_imgui_init_callback;
         config.allowTextureDumps = false;
+        // Seed the frame buffer scale before aurora initializes so the render targets are
+        // created at the configured size from the first frame. Applying it later (as the
+        // post-init call below still does for UI-driven changes) forces a mid-session
+        // resize, which recreates render targets from the game thread — on Mali/GLES that
+        // grabs Dawn's EGL context while the render worker may hold it and can deadlock.
+        VISetFrameBufferScale(dusk::getSettings().game.internalResolutionScale.getValue());
         auroraInfo = aurora_initialize(argc, argv, &config);
     }
 

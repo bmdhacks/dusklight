@@ -203,7 +203,10 @@ struct UserSettings {
         ConfigVar<bool> disableWaterRefraction;
         ConfigVar<bool> enableTextureReplacements;
         ConfigVar<FrameInterpMode> enableFrameInterpolation;
-        ConfigVar<int> internalResolutionScale;
+        // Float so low-end handhelds can render below the VI resolution
+        // (0.5 = 320x240 on a 640x480 VI mode); whole values remain the
+        // integer upscale factors, 0 = window-native.
+        ConfigVar<float> internalResolutionScale;
         ConfigVar<int> shadowResolutionMultiplier;
         ConfigVar<Resampler> resampler;
         ConfigVar<bool> enableMapBackground;

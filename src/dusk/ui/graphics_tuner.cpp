@@ -43,7 +43,9 @@ const Rml::String kDocumentSource = R"RML(
 int get_value(GraphicsOption option) {
     switch (option) {
     case GraphicsOption::InternalResolution:
-        return getSettings().game.internalResolutionScale.getValue();
+        // The var is float to allow sub-native scales from config; the tuner UI
+        // still steps whole multipliers.
+        return static_cast<int>(getSettings().game.internalResolutionScale.getValue() + 0.5f);
     case GraphicsOption::ShadowResolution:
         return getSettings().game.shadowResolutionMultiplier.getValue();
     case GraphicsOption::Resampler:
@@ -65,7 +67,7 @@ int get_value(GraphicsOption option) {
 void set_value(GraphicsOption option, int value) {
     switch (option) {
     case GraphicsOption::InternalResolution:
-        getSettings().game.internalResolutionScale.setValue(value);
+        getSettings().game.internalResolutionScale.setValue(static_cast<float>(value));
         VISetFrameBufferScale(static_cast<float>(value));
         break;
     case GraphicsOption::ShadowResolution:
