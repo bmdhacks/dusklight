@@ -167,6 +167,9 @@ float dusk::frameUsagePct = 0.0f;
 
 bool launchUILoop() {
     while (dusk::IsRunning && !dusk::IsGameLaunched) {
+        if (dusk::crash_handler::termination_requested()) {
+            return false;
+        }
         const AuroraEvent* event = aurora_update();
         while (event != nullptr && event->type != AURORA_NONE) {
             switch (event->type) {
@@ -385,7 +388,7 @@ void main01(void) {
         } else {
             main_loop_limiter.Reset();
         }
-    } while (dusk::IsRunning);
+    } while (dusk::IsRunning && !dusk::crash_handler::termination_requested());
 
     exit:;
     dusk::mods::ModLoader::instance().shutdown();
