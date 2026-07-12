@@ -707,6 +707,27 @@ if (DUSK_SELECTED_OPT)
     target_compile_options(freeverb PRIVATE ${_opt_flags})
 endif ()
 
+# Mali-handheld perf build: the target CPUs are in-order Cortex-A53 (RK3562/H700;
+# the RK3326's A35 is a compatible subset), so build the game + aurora hot paths
+# with -O3 and A53 scheduling/tuning. Dawn is deliberately left at the default -O2
+# -- it is fetched/built separately, its GL state-cache path is already tuned, and
+# an -O3 rebuild there only costs build time. -mcpu=cortex-a53 stays at the ARMv8-A
+# baseline every target device implements (never -march/-mcpu=native: this box is an
+# ARMv8.6 M2 and native codegen would SIGILL on the A35/A53 handhelds).
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+    set(_dusk_mali_opt_flags -O3 -mcpu=cortex-a53)
+    set(_dusk_mali_opt_targets
+        dusklight xxhash freeverb
+        aurora_core aurora_gx aurora_gd aurora_si aurora_vi aurora_pad
+        aurora_mtx aurora_os aurora_dvd aurora_card aurora_main aurora_ms
+        ${JSYSTEM_LIBRARIES})
+    foreach (_t IN LISTS _dusk_mali_opt_targets)
+        if (TARGET ${_t})
+            target_compile_options(${_t} PRIVATE ${_dusk_mali_opt_flags})
+        endif ()
+    endforeach ()
+endif ()
+
 # Packaging logic
 function(get_target_output_name target result_var)
     get_target_property(output_name ${target} OUTPUT_NAME)
