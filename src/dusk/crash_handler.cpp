@@ -7,6 +7,7 @@
 #include "dusk/logging.h"
 #include "version.h"
 
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -510,6 +511,33 @@ char g_altStack[kAltStackSize];
 struct sigaction g_prev[kSignalCount];
 std::terminate_handler g_prevTerminate = nullptr;
 
+// --- Graceful termination (SIGTERM/SIGINT) -----------------------------------
+// The launcher (PortMaster/gptokeyb) quits the game by signalling it. We disable
+// SDL's own signal handling (SDL_NO_SIGNAL_HANDLERS, set in install()) and own
+// these signals ourselves: request a cooperative shutdown that the main loop
+// polls via termination_requested(), and arm a watchdog so a wedged loop or a
+// deadlocked GPU teardown still exits promptly instead of forcing the user to
+// SIGKILL -- which skips SDL_Quit and can leave the display wedged for the next
+// launch. alarm()/_exit() and an atomic store are all async-signal-safe.
+constexpr unsigned kTerminationGraceSeconds = 5;
+std::atomic<bool> g_terminationRequested{false};
+
+void terminationWatchdog(int) {
+    // The cooperative shutdown didn't finish within the grace window; leave now.
+    _exit(128 + SIGTERM);
+}
+
+void terminationHandler(int sig) {
+    if (g_terminationRequested.exchange(true)) {
+        // A second signal: the launcher is insisting and the clean path isn't
+        // making progress. Don't wait for the watchdog -- exit immediately.
+        _exit(128 + sig);
+    }
+    // First signal: ask the main loop to unwind cleanly, but guarantee an exit
+    // even if it never gets there.
+    alarm(kTerminationGraceSeconds);
+}
+
 void crashRegs(void* ucv, uintptr_t& pc, uintptr_t& lr, uintptr_t& fp) {
     pc = 0;
     lr = 0;
@@ -958,7 +986,36 @@ void install() {
         sigaction(kSignals[i], &sa, &g_prev[i]);
     }
 
+    // Take ownership of SIGTERM/SIGINT and keep SDL from installing its own
+    // cooperative-only handler over the top (install() runs before SDL_Init). Set
+    // via the environment so the hint reaches both the SDL3 shim and the firmware
+    // SDL2 it wraps.
+    setenv("SDL_NO_SIGNAL_HANDLERS", "1", 1);
+
+    struct sigaction termSa;
+    std::memset(&termSa, 0, sizeof(termSa));
+    termSa.sa_handler = &terminationHandler;
+    sigemptyset(&termSa.sa_mask);
+    termSa.sa_flags = 0;  // no SA_RESTART: let a blocking wait return EINTR and re-poll
+    sigaction(SIGTERM, &termSa, nullptr);
+    sigaction(SIGINT, &termSa, nullptr);
+
+    struct sigaction alarmSa;
+    std::memset(&alarmSa, 0, sizeof(alarmSa));
+    alarmSa.sa_handler = &terminationWatchdog;
+    sigemptyset(&alarmSa.sa_mask);
+    alarmSa.sa_flags = 0;
+    sigaction(SIGALRM, &alarmSa, nullptr);
+
     g_prevTerminate = std::set_terminate(&onTerminate);
+#endif
+}
+
+bool termination_requested() noexcept {
+#if defined(_WIN32)
+    return false;
+#else
+    return g_terminationRequested.load(std::memory_order_relaxed);
 #endif
 }
 
