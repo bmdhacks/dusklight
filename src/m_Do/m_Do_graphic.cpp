@@ -53,6 +53,7 @@
 #include "dusk/dusk.h"
 #include "helpers/endian.h"
 #include "dusk/frame_interpolation.h"
+#include "dusk/game_clock.h"
 #include "dusk/gfx.hpp"
 #include "helpers/gx_helper.h"
 #include "dusk/imgui/ImGuiConsole.hpp"
@@ -473,33 +474,56 @@ void darwFilter(GXColor matColor) {
     GXEnd();
 }
 
-void mDoGph_gInf_c::calcFade() {
-#if TARGET_PC
-    if (dusk::frame_interp::get_ui_tick_pending())
-#endif
-    {
-        if (mFade != 0) {
-            mFadeRate += mFadeSpeed;
+// mDoGph_Painter and JFWDisplay::endGX run once per presented frame, but a handful of state machines
+// live inside them. In decoupled mode the painter runs at the render rate rather than the sim rate,
+// so those advances are suppressed at their original sites and driven from here instead, once per
+// sim tick. Each of these was already gated on frame_interp::get_ui_tick_pending() -- that gate is
+// what identifies them as per-tick work rather than per-paint work.
+void dusk::game_clock::advance_paint_side_calcs() {
+    dComIfGp_particle_calcMenu();
+    mDoGph_gInf_c::advanceFade();
+    dDlst_list_c::calcWipe();
 
-            if (mFadeRate < 0.0f) {
-                mFadeRate = 0.0f;
-                mFade = 0;
-            } else {
-                if (mFadeRate > 1.0f) {
-                    mFadeRate = 1.0f;
-                }
-            }
-            mFadeColor.a = 255.0f * mFadeRate;
+    if (JFWDisplay* display = JFWDisplay::getManager()) {
+        if (JUTFader* fader = display->getFader()) {
+            fader->advance();
+        }
+    }
+}
+
+void mDoGph_gInf_c::advanceFade() {
+    if (mFade != 0) {
+        mFadeRate += mFadeSpeed;
+
+        if (mFadeRate < 0.0f) {
+            mFadeRate = 0.0f;
+            mFade = 0;
         } else {
-            if (dComIfG_getBrightness() != 255) {
-                mFadeColor.r = 0;
-                mFadeColor.g = 0;
-                mFadeColor.b = 0;
-                mFadeColor.a = 255 - dComIfG_getBrightness();
-            } else {
-                mFadeColor.a = 0;
+            if (mFadeRate > 1.0f) {
+                mFadeRate = 1.0f;
             }
         }
+        mFadeColor.a = 255.0f * mFadeRate;
+    } else {
+        if (dComIfG_getBrightness() != 255) {
+            mFadeColor.r = 0;
+            mFadeColor.g = 0;
+            mFadeColor.b = 0;
+            mFadeColor.a = 255 - dComIfG_getBrightness();
+        } else {
+            mFadeColor.a = 0;
+        }
+    }
+}
+
+void mDoGph_gInf_c::calcFade() {
+#if TARGET_PC
+    // Decoupled mode steps the fade once per sim tick from the main loop; the painter, which runs at
+    // the render rate, only draws it. Everything below the advance is presentation.
+    if (dusk::frame_interp::get_ui_tick_pending() && !dusk::game_clock::decoupled_active())
+#endif
+    {
+        advanceFade();
     }
 
     if (mFadeColor.a != 0) {
@@ -2214,7 +2238,8 @@ int mDoGph_Painter() {
     #endif
 
 #ifdef TARGET_PC
-    if (dusk::frame_interp::get_ui_tick_pending())
+    // Decoupled mode steps this once per sim tick from the main loop instead.
+    if (dusk::frame_interp::get_ui_tick_pending() && !dusk::game_clock::decoupled_active())
 #endif
     {
         dComIfGp_particle_calcMenu();
@@ -2775,7 +2800,10 @@ int mDoGph_Painter() {
 
     GXSetClipMode(GX_CLIP_ENABLE);
 #if TARGET_PC
-    if (dusk::frame_interp::get_ui_tick_pending())
+    // Decoupled mode steps this once per sim tick from the main loop instead. calcWipe also
+    // registers mWipeDlst into the 2D XLU bucket; the sim tick does that after fpcDw_Handler has
+    // reset the buckets, so the painter below still finds it.
+    if (dusk::frame_interp::get_ui_tick_pending() && !dusk::game_clock::decoupled_active())
 #endif
     {
         dDlst_list_c::calcWipe();

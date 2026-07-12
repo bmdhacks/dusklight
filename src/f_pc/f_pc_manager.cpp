@@ -20,6 +20,7 @@
 #include "f_pc/f_pc_pause.h"
 #include "f_pc/f_pc_priority.h"
 #include "m_Do/m_Do_controller_pad.h"
+#include "dusk/game_clock.h"
 
 #if TARGET_PC
 #include "dusk/frame_interpolation.h"
@@ -68,8 +69,9 @@ void fpcM_Management(fpcM_ManagementFunc i_preExecuteFn, fpcM_ManagementFunc i_p
             }
 
 #ifdef TARGET_PC
-            // FRAME INTERP NOTE: Called in m_Do_main when interp is enabled
-            if (!dusk::frame_interp::is_enabled())
+            // FRAME INTERP NOTE: Called in m_Do_main when interp is enabled.
+            // Decoupled mode likewise paints once per presented frame, after its sim ticks.
+            if (!dusk::frame_interp::is_enabled() && !dusk::game_clock::decoupled_active())
 #endif
             {
                 cAPIGph_Painter();

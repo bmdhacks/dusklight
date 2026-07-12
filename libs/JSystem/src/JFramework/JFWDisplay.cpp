@@ -15,6 +15,8 @@
 #ifdef TARGET_PC
 #include "dusk/dusk.h"
 #include "dusk/frame_interpolation.h"
+#include "dusk/game_clock.h"
+#include "helpers/gx_helper.h"
 #include "dusk/logging.h"
 #include "dusk/settings.h"
 #include "dusk/time.h"
@@ -218,7 +220,9 @@ void JFWDisplay::endGX() {
     if (mFader != NULL) {
         ortho.setPort();
 #ifdef TARGET_PC
-        if (dusk::frame_interp::get_ui_tick_pending()) {
+        // Decoupled mode steps the fader once per sim tick from the main loop; endGX runs at the
+        // render rate and only draws it.
+        if (dusk::frame_interp::get_ui_tick_pending() && !dusk::game_clock::decoupled_active()) {
             mFader->advance();
         }
         if (mFader->getStatus() != JUTFader::Wait) {
