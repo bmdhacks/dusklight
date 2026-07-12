@@ -61,6 +61,7 @@ UserSettings g_userSettings = {
         .enableLinkDollRotation {"game.enableLinkDollRotation", false},
         .enableAchievementToasts {"game.enableAchievementToasts", true},
         .enableControllerToasts {"game.enableControllerToasts", true},
+        .showPipelineProgress {"game.showPipelineProgress", true},
         .enableDiscordPresence {"game.enableDiscordPresence", true},
         .menuScalingMode {"game.menuScalingMode", MenuScaling::Wii},
 
@@ -291,6 +292,7 @@ void registerSettings() {
     Register(g_userSettings.game.enableLinkDollRotation);
     Register(g_userSettings.game.enableAchievementToasts);
     Register(g_userSettings.game.enableControllerToasts);
+    Register(g_userSettings.game.showPipelineProgress);
     Register(g_userSettings.game.noMissClimbing);
     Register(g_userSettings.game.noLowHpSound);
     Register(g_userSettings.game.midnasLamentNonStop);
