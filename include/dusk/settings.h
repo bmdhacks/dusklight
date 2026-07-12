@@ -193,6 +193,7 @@ struct UserSettings {
         ConfigVar<bool> enableLinkDollRotation;
         ConfigVar<bool> enableAchievementToasts;
         ConfigVar<bool> enableControllerToasts;
+        ConfigVar<bool> showPipelineProgress;
         ConfigVar<bool> enableDiscordPresence;
         ConfigVar<MenuScaling> menuScalingMode;
 

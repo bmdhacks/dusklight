@@ -426,6 +426,12 @@ void Overlay::update_pipeline_progress() {
         return;
     }
 
+    if (!getSettings().game.showPipelineProgress) {
+        mPipelineProgress->RemoveAttribute("open");
+        mPipelineProgressActive = false;
+        return;
+    }
+
     const auto* stats = aurora_get_stats();
     const uint32_t queuedPipelines = stats != nullptr ? stats->queuedPipelines : 0;
     if (queuedPipelines == 0) {
