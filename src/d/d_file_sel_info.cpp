@@ -219,7 +219,47 @@ void dFile_info_c::modeWait() {}
 
 void dFile_info_c::modeMove() {}
 
+#if TARGET_PC
+
+static u64 const heart_tags[] = {
+    MULTI_CHAR('hear_20'),
+    MULTI_CHAR('hear_21'),
+    MULTI_CHAR('hear_22'),
+    MULTI_CHAR('hear_23'),
+    MULTI_CHAR('hear_24'),
+    MULTI_CHAR('hear_25'),
+    MULTI_CHAR('hear_26'),
+    MULTI_CHAR('hear_27'),
+    MULTI_CHAR('hear_28'),
+    MULTI_CHAR('hear_29'),
+    MULTI_CHAR('hear_30'),
+    MULTI_CHAR('hear_31'),
+    MULTI_CHAR('hear_32'),
+    MULTI_CHAR('hear_33'),
+    MULTI_CHAR('hear_34'),
+    MULTI_CHAR('hear_35'),
+    MULTI_CHAR('hear_36'),
+    MULTI_CHAR('hear_37'),
+    MULTI_CHAR('hear_38'),
+    MULTI_CHAR('hear_39'),
+};
+
+void dFile_info_c::fileSelectWide() {
+    // TPHD Exclusions
+    if (dusk::tphd_active()) {
+        mFileInfo.Scr->search(MULTI_CHAR('t_w_01'))->hide();
+
+        for (int i = 0; i < 20; i++) {
+            static_cast<J2DPicture*>(mFileInfo.Scr->search(heart_tags[i]))
+                ->setBlackWhite(
+                    JUtility::TColor(231, 25, 0, 0), JUtility::TColor(255, 255, 255, 255));
+        }
+    }
+}
+#endif
+
 void dFile_info_c::_draw() {
+    fileSelectWide();
     dComIfGd_set2DOpa(&mFileInfo);
 }
 

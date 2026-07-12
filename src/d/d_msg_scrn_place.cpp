@@ -20,6 +20,14 @@ dMsgScrnPlace_c::dMsgScrnPlace_c() {
     static u64 t_tag[7] = {
         MULTI_CHAR('sfontb0'), MULTI_CHAR('sfontb1'), MULTI_CHAR('sfontb2'), MULTI_CHAR('sfontl0'), MULTI_CHAR('sfontl1'), MULTI_CHAR('sfontl2'), MULTI_CHAR('sfont00'),
     };
+
+    #if TARGET_PC
+    if (dusk::tphd_active()) {
+        t_tag[0] = MULTI_CHAR('sfontb1');
+        t_tag[1] = MULTI_CHAR('sfontl1');
+    }
+    #endif
+
     init();
 
     dCamera_c* camera = dCam_getBody();
@@ -54,7 +62,7 @@ dMsgScrnPlace_c::dMsgScrnPlace_c() {
     mpBaseParent->paneTrans(g_MsgObject_HIO_c.mStageTitleBasePosX,
                             g_MsgObject_HIO_c.mStageTitleBasePosY - mScaleY);
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < DUSK_IF_ELSE((dusk::tphd_active() ? 2 : 7), 7); i++) {
         mpTm_c[i] = JKR_NEW CPaneMgr(mpScreen, t_tag[i], 0, NULL);
         ((J2DTextBox*)mpTm_c[i]->getPanePtr())->setFont(mDoExt_getRubyFont());
         ((J2DTextBox*)mpTm_c[i]->getPanePtr())->setString(0x80, "");
@@ -69,7 +77,7 @@ dMsgScrnPlace_c::dMsgScrnPlace_c() {
     mLineSpace = ((J2DTextBox*)mpTm_c[0]->getPanePtr())->getLineSpace();
     mCharSpace = ((J2DTextBox*)mpTm_c[0]->getPanePtr())->getCharSpace();
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < DUSK_IF_ELSE((dusk::tphd_active() ? 2 : 7), 7); i++) {
         ((J2DTextBox*)mpTm_c[i]->getPanePtr())->setLineSpace(mLineSpace);
         ((J2DTextBox*)mpTm_c[i]->getPanePtr())
             ->resize(mpTm_c[i]->getSizeX() * 1.2f, mpTm_c[i]->getSizeY());
@@ -145,7 +153,7 @@ void dMsgScrnPlace_c::fukiAlpha(f32 i_rate) {
     mpPmP_c->setAlphaRate(i_rate);
     mpBaseParent->setAlphaRate(i_rate * g_MsgObject_HIO_c.mStageTitleBaseAlpha);
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < DUSK_IF_ELSE((dusk::tphd_active() ? 2 : 7), 7); i++) {
         mpTm_c[i]->setAlphaRate(i_rate);
     }
 }

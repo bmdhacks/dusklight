@@ -4209,6 +4209,12 @@ void dFile_select_c::fileSelectWide() {
         }
         break;
     }
+
+    // TPHD Exclusions
+    if (dusk::tphd_active()) {
+        mSelDt.ScrDt->search(MULTI_CHAR('stamps_n'))->hide();
+        fileSel.Scr->search(MULTI_CHAR('w_sel_03'))->hide();
+    }
 }
 #endif
 

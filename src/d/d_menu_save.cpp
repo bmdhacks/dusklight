@@ -2966,11 +2966,15 @@ void dMenu_save_c::menuSaveWide() {
     mSaveSel.Scr->search(MULTI_CHAR('w_uzu08'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
     mSaveSel.Scr->search(MULTI_CHAR('w_uzu09'))->scale(mDoGph_gInf_c::hudAspectScaleDown, 1.0f);
     
-    #if TARGET_PC
     if (mSelIcon) {
         mSelIcon->refreshAspectScale(mDoGph_gInf_c::hudAspectScaleUp);
     }
-    #endif
+
+    if (dusk::tphd_active()) {
+        mSaveSel.Scr->search(MULTI_CHAR('w_sel_03'))->hide();
+        mSaveSel.Scr->search(MULTI_CHAR('w_sel_04'))->hide();
+        mSaveSel.Scr->search(MULTI_CHAR('w_btn_n'))->hide();
+    }
 }
 #endif
 

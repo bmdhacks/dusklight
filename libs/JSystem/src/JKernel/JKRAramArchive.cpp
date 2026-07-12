@@ -11,6 +11,11 @@
 #include <cstring>
 #include "os_report.h"
 
+#if DUSK_TPHD
+#include "dusk/settings.h"
+#include "dusk/tphd/HdAssetLayer.hpp"
+#endif
+
 JKRAramArchive::JKRAramArchive() {}
 
 JKRAramArchive::JKRAramArchive(s32 entryNumber, JKRArchive::EMountDirection mountDirection)
@@ -217,6 +222,13 @@ void* JKRAramArchive::fetchResource(SDIFileEntry* pEntry, u32* pOutSize) {
         if (compression == COMPRESSION_YAZ0) {
             this->setExpandSize(pEntry, *pOutSize);
         }
+#if DUSK_TPHD
+        // ARAM mounts bypass register_mounted_hd_archive; hook the fresh per-file buffer here.
+        if (dusk::tphd_active() && mStringTable != NULL) {
+            dusk::tphd::register_copied_hd_resource(
+                mEntryNum, mStringTable + pEntry->getNameOffset(), outBuf, *pOutSize);
+        }
+#endif
     } else {
         if (compression == COMPRESSION_YAZ0) {
             *pOutSize = this->getExpandSize(pEntry);

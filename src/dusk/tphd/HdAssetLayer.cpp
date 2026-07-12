@@ -78,6 +78,7 @@ struct HdOverlayEntry {
     std::string dvdPath;
     std::filesystem::path arcPath;
     std::filesystem::path packPath;
+    std::filesystem::path gcPackPath;  // per-texture fallback when packPath lacks an entry
     size_t size = 0;
 };
 
@@ -260,6 +261,13 @@ const TmpkEntry* findGtxBySuffix(const TphdPack& pack, std::string_view arcRelPa
         if (endsWithSuffixCI(e.name, tail)) return &e;
     }
     return nullptr;
+}
+
+// HD (Revo) pack first; per-texture fallback to the GC sibling pack.
+const TmpkEntry* findGtxBySuffixChain(const TphdPack& pack, const TphdPack* gcPack,
+                                      std::string_view arcRelPath) {
+    if (const TmpkEntry* e = findGtxBySuffix(pack, arcRelPath)) return e;
+    return gcPack != nullptr ? findGtxBySuffix(*gcPack, arcRelPath) : nullptr;
 }
 
 // Post-deswizzle CPU expansions to RGBA8. Used for formats whose HD layout
@@ -486,13 +494,13 @@ void applyTimgAttributes(ResTIMG* timg, const GtxSurface& s, s32 imageOffset) {
     timg->maxAnisotropy = GX_ANISO_4;
 }
 
-bool register_hd_bti_replacement_for_buffer(const TphdPack& pack, std::string_view resourceName,
-    void* buffer, size_t resourceSize, bool replaceExistingPointer) {
+bool register_hd_bti_replacement_for_buffer(const TphdPack& pack, const TphdPack* gcPack,
+    std::string_view resourceName, void* buffer, size_t resourceSize, bool replaceExistingPointer) {
     if (buffer == nullptr || resourceSize < 0x20 || !endsWithSuffixCI(resourceName, ".bti")) {
         return false;
     }
 
-    const TmpkEntry* gtx = findGtxBySuffix(pack, resourceName);
+    const TmpkEntry* gtx = findGtxBySuffixChain(pack, gcPack, resourceName);
     if (!gtx) {
         return false;
     }
@@ -547,13 +555,13 @@ u32 bmdSlotBtiOffset(std::span<const u8> bmd, u32 slotIdx) {
     return 0;
 }
 
-size_t register_hd_bmd_textures_for_buffer(const TphdPack& pack, std::string_view resourceName,
-    void* buffer, size_t resourceSize, bool replaceExistingPointer) {
+size_t register_hd_bmd_textures_for_buffer(const TphdPack& pack, const TphdPack* gcPack,
+    std::string_view resourceName, void* buffer, size_t resourceSize, bool replaceExistingPointer) {
     if (buffer == nullptr || resourceSize < 0x20) return 0;
     if (!endsWithSuffixCI(resourceName, ".bmd") &&
         !endsWithSuffixCI(resourceName, ".bdl")) return 0;
 
-    const TmpkEntry* gtx = findGtxBySuffix(pack, resourceName);
+    const TmpkEntry* gtx = findGtxBySuffixChain(pack, gcPack, resourceName);
     if (gtx == nullptr) return 0;
 
     std::span<u8> bmdBytes(static_cast<u8*>(buffer), resourceSize);
@@ -594,6 +602,7 @@ struct ArcFileInfo {
     std::string path;  // e.g. "bmdr/model.bmd"
     u32 dataOffset;    // absolute offset from arc base
     u32 dataSize;
+    bool compressed;
 };
 
 std::vector<ArcFileInfo> parseRarcFiles(std::span<const u8> arc) {
@@ -652,6 +661,7 @@ std::vector<ArcFileInfo> parseRarcFiles(std::span<const u8> arc) {
                     : std::move(fname),
                 static_cast<u32>(dataBase + entry.data_offset),
                 entry.data_size,
+                (typeFlags & JKRARCHIVE_ATTR_COMPRESSION) != 0,
             });
         }
     }
@@ -665,28 +675,34 @@ std::vector<ArcFileInfo> parseRarcFiles(std::span<const u8> arc) {
 // arcBytes must point at the mounted archive bytes the game will later use;
 // aurora's pointer lookups depend on those addresses staying valid.
 void register_hd_textures_for_arc(std::span<u8> arcBytes, const std::vector<ArcFileInfo>& files,
-    const TphdPack& pack, std::string_view arcLabel) {
+    const TphdPack& pack, const TphdPack* gcPack, std::string_view arcLabel) {
     ZoneScoped;
     ZoneText(arcLabel.data(), arcLabel.size());
     size_t bmdReg = 0;
     size_t btiReg = 0;
+    size_t deferred = 0;
 
     // Phase A: per-slot textures inside BMD/BDL models.
     for (const auto& f : files) {
-        bmdReg += register_hd_bmd_textures_for_buffer(pack, f.path, arcBytes.data() + f.dataOffset, f.dataSize, false);
+        if (f.compressed) {
+            ++deferred;
+            continue;
+        }
+        bmdReg += register_hd_bmd_textures_for_buffer(pack, gcPack, f.path, arcBytes.data() + f.dataOffset, f.dataSize, false);
     }
 
     // Phase B: standalone .bti files. Each BTI is its own arc entry; the
     // game loads it via JUTTexture (or similar) which calls GXInitTexObj
     // with `(u8*)resTIMG + imageOffset`. Register that exact pointer.
     for (const auto& f : files) {
-        if (register_hd_bti_replacement_for_buffer(pack, f.path, arcBytes.data() + f.dataOffset, f.dataSize, false)) {
+        if (f.compressed) continue;
+        if (register_hd_bti_replacement_for_buffer(pack, gcPack, f.path, arcBytes.data() + f.dataOffset, f.dataSize, false)) {
             ++btiReg;
         }
     }
 
-    HdLog.info("registerHdTextures[{}]: {} BMD-slot, {} standalone-BTI replacements",
-               arcLabel, bmdReg, btiReg);
+    HdLog.info("registerHdTextures[{}]: {} BMD-slot, {} standalone-BTI replacements, {} compressed deferred",
+               arcLabel, bmdReg, btiReg, deferred);
 }
 
 // HD arcs whose Wii-U layouts don't match the GC UI pipeline.
@@ -722,10 +738,24 @@ std::filesystem::path hd_pack_path_for_arc(std::string_view resPath) {
     return packPath;
 }
 
+// Layout arcs to mount from HD content instead of the ISO.
+constexpr std::string_view kHdLayoutMountList[] = {
+    "res/Layout/clctres.arc",
+    "res/Layout/fishres.arc",
+    "res/Layout/insectRes.arc",
+    "res/Layout/letres.arc",
+    "res/Layout/ringres.arc",
+    "res/Layout/skillres.arc",
+};
+
 bool should_skip_hd_arc_mount(std::string_view resPath) {
-    // Layout HD archives do not match the GC UI pipeline, but their pack.gz
-    // textures can still be registered against the vanilla archive.
+    return false;
+
+    // Layout arcs mount only via kHdLayoutMountList.
     if (is_layout_arc_path(resPath)) {
+        for (auto mount : kHdLayoutMountList) {
+            if (resPath == mount) return false;
+        }
         return true;
     }
     for (auto skip : kHdSkipList) {
@@ -736,6 +766,15 @@ bool should_skip_hd_arc_mount(std::string_view resPath) {
 
 bool should_register_hd_pack_for_vanilla_arc(std::string_view resPath) {
     return resPath.starts_with("res/Layout/");
+}
+
+std::filesystem::path fallback_path_for_arc(std::string_view resPath,
+                                              const std::filesystem::path& preferred) {
+    if (!resPath.starts_with("res/Layout/")) return {};
+    std::filesystem::path sibling = g_contentPath / std::string(resPath);
+    sibling.replace_extension(".pack.gz");
+    if (sibling == preferred || !path_exists(sibling)) return {};
+    return sibling;
 }
 
 void* overlay_open(void* userData) {
@@ -869,6 +908,7 @@ void rebuild_hd_overlay_locked() {
         entry.dvdPath = "/" + resPath;
         entry.arcPath = arcPath;
         entry.packPath = hd_pack_path_for_arc(resPath);
+        entry.gcPackPath = fallback_path_for_arc(resPath, entry.packPath);
         entry.size = *fileSize;
 
         overlayFiles.push_back({
@@ -987,9 +1027,13 @@ std::optional<std::vector<u8>*> try_load_hd_archive(std::string_view gcPath) {
     auto hdFiles = parseRarcFiles(std::span<const u8>(
         hdBytesOpt->data(), hdBytesOpt->size()));
 
-    // Sidecar pack.gz holds the HD textures.
+    // Sidecar pack.gz holds the HD textures; GC sibling pack as per-texture fallback.
     auto hdPackPath = hd_pack_path_for_arc(resPath);
     auto hdPack = load_pack_cached(hdPackPath);
+    std::shared_ptr<const TphdPack> gcPack;
+    if (auto gcPackPath = fallback_path_for_arc(resPath, hdPackPath); !gcPackPath.empty()) {
+        gcPack = load_pack_cached(gcPackPath);
+    }
 
     // std::list keeps element addresses stable for aurora's pointer map.
     std::vector<u8>* mountBytes;
@@ -1006,22 +1050,25 @@ std::optional<std::vector<u8>*> try_load_hd_archive(std::string_view gcPath) {
                mountBytes->size(), hdPack ? "yes" : "no");
 
     if (hdPack != nullptr) {
-        register_hd_textures_for_arc(*mountBytes, hdFiles, *hdPack, filename);
+        register_hd_textures_for_arc(*mountBytes, hdFiles, *hdPack, gcPack.get(), filename);
     }
 
     return mountBytes;
 }
 
 void register_mounted_hd_archive(s32 entryNum, void* arcBytes, size_t arcSize) {
+    if (g_contentPath.empty()) return;
     if (entryNum < 0 || arcBytes == nullptr || arcSize == 0) return;
 
     std::filesystem::path packPath;
+    std::filesystem::path gcPackPath;
     std::string label;
     {
         std::lock_guard lk{g_cacheMutex};
         auto it = g_entryNumToOverlay().find(entryNum);
         if (it == g_entryNumToOverlay().end()) return;
         packPath = it->second->packPath;
+        gcPackPath = it->second->gcPackPath;
         label = it->second->arcPath.filename().string();
     }
 
@@ -1035,13 +1082,18 @@ void register_mounted_hd_archive(s32 entryNum, void* arcBytes, size_t arcSize) {
     if (hdPack == nullptr) {
         return;
     }
+    std::shared_ptr<const TphdPack> gcPack;
+    if (!gcPackPath.empty()) {
+        gcPack = load_pack_cached(gcPackPath);
+    }
 
     auto hdFiles = parseRarcFiles(std::span<const u8>(arcSpan.data(), arcSpan.size()));
-    register_hd_textures_for_arc(arcSpan, hdFiles, *hdPack, label);
+    register_hd_textures_for_arc(arcSpan, hdFiles, *hdPack, gcPack.get(), label);
 }
 
 void register_copied_hd_resource(s32 entryNum, std::string_view resourceName, void* buffer,
                             size_t resourceSize) {
+    if (g_contentPath.empty()) return;
     if (entryNum < 0 || buffer == nullptr || resourceSize < 0x20) return;
 
     const bool isBti = endsWithSuffixCI(resourceName, ".bti");
@@ -1050,6 +1102,7 @@ void register_copied_hd_resource(s32 entryNum, std::string_view resourceName, vo
     if (!isBti && !isBmd) return;
 
     std::filesystem::path packPath;
+    std::filesystem::path gcPackPath;
     {
         std::lock_guard lk{g_cacheMutex};
         auto it = g_entryNumToOverlay().find(entryNum);
@@ -1057,17 +1110,22 @@ void register_copied_hd_resource(s32 entryNum, std::string_view resourceName, vo
             return;
         }
         packPath = it->second->packPath;
+        gcPackPath = it->second->gcPackPath;
     }
 
     auto hdPack = load_pack_cached(packPath);
     if (hdPack == nullptr) {
         return;
     }
+    std::shared_ptr<const TphdPack> gcPack;
+    if (!gcPackPath.empty()) {
+        gcPack = load_pack_cached(gcPackPath);
+    }
 
     if (isBti) {
-        register_hd_bti_replacement_for_buffer(*hdPack, resourceName, buffer, resourceSize, true);
+        register_hd_bti_replacement_for_buffer(*hdPack, gcPack.get(), resourceName, buffer, resourceSize, true);
     } else {
-        register_hd_bmd_textures_for_buffer(*hdPack, resourceName, buffer, resourceSize, true);
+        register_hd_bmd_textures_for_buffer(*hdPack, gcPack.get(), resourceName, buffer, resourceSize, true);
     }
 }
 

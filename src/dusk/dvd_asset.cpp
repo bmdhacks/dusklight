@@ -114,6 +114,13 @@ bool LoadRelAsset(void* dst, const char* dvdPath, std::initializer_list<OffsetVe
 }
 
 bool LoadArchivedRelAsset(void* dst, u32 memType, const char* relFileName, std::initializer_list<OffsetVersion> offset, s32 size) {
+    #if TARGET_PC
+    // TODO: Load from TPHD RPX instead.
+    if (dusk::tphd_active()) {
+        return false;
+    }
+    #endif
+
     auto resOffset = GetOffsetForVersion(offset);
 
     // On TARGET_PC, cDyl_InitCallback skips DynamicModuleControl::initialize() due to static linking

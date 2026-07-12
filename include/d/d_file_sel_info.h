@@ -27,6 +27,11 @@ public:
     void setSaveDate(dSv_save_c*);
     void setPlayTime(dSv_save_c*);
     void modeWait();
+
+    #if TARGET_PC
+    void fileSelectWide();
+    #endif
+
     void modeMove();
     void _draw();
 
