@@ -114,7 +114,11 @@ progress fill {
 pipeline-progress {
     left: 12dp;
     bottom: 12dp;
-    display: flex;
+    /* Hidden by default via display:none, not filter:opacity(0). A `filter` forces RmlUi to render
+       the subtree into a clip-masked layer and composite it every frame even at zero opacity, and
+       the spinner's infinite animation keeps that layer dirty. display:none culls it entirely, so an
+       idle/hidden widget (the common case, and always when showPipelineProgress is off) costs nothing. */
+    display: none;
     flex-flow: column;
     z-index: 100;
     min-width: 260dp;
@@ -122,13 +126,11 @@ pipeline-progress {
     padding: 10dp 16dp 12dp;
     border-radius: 7dp;
     overflow: hidden;
-    filter: opacity(0);
-    transition: filter 0.2s linear-in-out;
     pointer-events: none;
 }
 
 pipeline-progress[open] {
-    filter: opacity(1);
+    display: flex;
 }
 
 pipeline-status {
