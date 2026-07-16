@@ -51,6 +51,10 @@ enum class GraphicsOption {
 
 Rml::String format_graphics_setting_value(GraphicsOption option, int value);
 
+// Convert a float-backed setting's raw value into the tuner carousel's integer units for the
+// given option (Internal Resolution steps in half multipliers, Bloom Multiplier in percent).
+int graphics_float_carousel_units(GraphicsOption option, float rawValue);
+
 struct GraphicsTunerProps {
     GraphicsOption option;
     Rml::String title;

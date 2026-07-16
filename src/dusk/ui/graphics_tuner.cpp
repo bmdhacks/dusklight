@@ -43,9 +43,10 @@ const Rml::String kDocumentSource = R"RML(
 int get_value(GraphicsOption option) {
     switch (option) {
     case GraphicsOption::InternalResolution:
-        // The var is float to allow sub-native scales from config; the tuner UI
-        // still steps whole multipliers.
-        return static_cast<int>(getSettings().game.internalResolutionScale.getValue() + 0.5f);
+        // The var is float to allow sub-native scales (e.g. 0.5x); the tuner carousel steps in
+        // half-multiplier units (0 = Auto, 1 = 0.5x, 2 = 1x, ...).
+        return graphics_float_carousel_units(
+            option, getSettings().game.internalResolutionScale.getValue());
     case GraphicsOption::ShadowResolution:
         return getSettings().game.shadowResolutionMultiplier.getValue();
     case GraphicsOption::Resampler:
@@ -66,10 +67,13 @@ int get_value(GraphicsOption option) {
 
 void set_value(GraphicsOption option, int value) {
     switch (option) {
-    case GraphicsOption::InternalResolution:
-        getSettings().game.internalResolutionScale.setValue(static_cast<float>(value));
-        VISetFrameBufferScale(static_cast<float>(value));
+    case GraphicsOption::InternalResolution: {
+        // Carousel units are half multipliers (see get_value): scale = value * 0.5.
+        const float scale = static_cast<float>(value) * 0.5f;
+        getSettings().game.internalResolutionScale.setValue(scale);
+        VISetFrameBufferScale(scale);
         break;
+    }
     case GraphicsOption::ShadowResolution:
         getSettings().game.shadowResolutionMultiplier.setValue(value);
         break;
@@ -205,7 +209,8 @@ Rml::String format_graphics_setting_value(GraphicsOption option, int value) {
         if (value <= 0) {
             return fmt::format("Auto ({}×{})", width, height);
         } else {
-            return fmt::format("{}× ({}×{})", value, width, height);
+            // Carousel units are half multipliers (see get_value); {:g} trims 1.0 -> "1".
+            return fmt::format("{:g}× ({}×{})", static_cast<float>(value) * 0.5f, width, height);
         }
     }
     case GraphicsOption::ShadowResolution:
@@ -244,6 +249,18 @@ Rml::String format_graphics_setting_value(GraphicsOption option, int value) {
         return static_cast<bool>(value) ? "On" : "Off";
     }
     return "";
+}
+
+int graphics_float_carousel_units(GraphicsOption option, float rawValue) {
+    switch (option) {
+    case GraphicsOption::InternalResolution:
+        // Half-multiplier steps: 0 = Auto, 1 = 0.5x, 2 = 1x, ...
+        return static_cast<int>(rawValue * 2.0f + 0.5f);
+    case GraphicsOption::BloomMultiplier:
+        return std::clamp(static_cast<int>(rawValue * 100.0f + 0.5f), 0, 100);
+    default:
+        return static_cast<int>(rawValue + 0.5f);
+    }
 }
 
 GraphicsTuner::GraphicsTuner(GraphicsTunerProps props)

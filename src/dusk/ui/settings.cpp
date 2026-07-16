@@ -540,7 +540,7 @@ void graphics_tuner_control(Window& window, Pane& leftPane, Pane& rightPane, Con
                     [&var, option = props.option] {
                         if constexpr (std::is_same_v<T, float>) {
                             return format_graphics_setting_value(
-                                option, float_setting_percent(var));
+                                option, graphics_float_carousel_units(option, var.getValue()));
                         } else {
                             return format_graphics_setting_value(
                                 option, static_cast<int>(var.getValue()));
@@ -863,7 +863,8 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                 .title = "Internal Resolution",
                 .helpText = kInternalResolutionHelpText,
                 .valueMin = 0,
-                .valueMax = 12,
+                // Half-multiplier units: 0 = Auto, 1 = 0.5x, 2 = 1x, ... 24 = 12x.
+                .valueMax = 24,
                 .defaultValue = 0,
             });
         graphics_tuner_control(*this, leftPane, rightPane,
