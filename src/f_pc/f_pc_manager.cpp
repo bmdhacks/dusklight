@@ -22,6 +22,10 @@
 #include "m_Do/m_Do_controller_pad.h"
 #include "dusk/game_clock.h"
 
+#if TARGET_PC
+#include "dusk/frame_interpolation.h"
+#endif
+
 #include "tracy/Tracy.hpp"
 
 void fpcM_Draw(void* i_proc) {
