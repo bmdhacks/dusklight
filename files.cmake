@@ -1444,8 +1444,6 @@ set(DUSK_FILES
         src/dusk/gamepad_color.cpp
         src/dusk/globals.cpp
         src/dusk/gyro.cpp
-        include/dusk/heaptrack.hpp
-        src/dusk/heaptrack.cpp
         include/dusk/menu_pointer.h
         src/dusk/menu_pointer.cpp
         src/dusk/mouse.cpp
