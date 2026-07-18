@@ -12,6 +12,17 @@ project(dusklight LANGUAGES C CXX VERSION ${DUSK_VERSION_STRING})
 if (APPLE)
     enable_language(OBJC OBJCXX)
 endif ()
+
+# Dev-only built-in heap tracer (src/dusk/heaptrack.cpp). OFF by default; a normal build defines
+# none of its process-wide malloc/mmap interposers (zero overhead). ON compiles them and adds
+# -fno-omit-frame-pointer everywhere (game + aurora) so the tracer's frame-pointer stack walk works.
+# Placed before add_subdirectory(extern/aurora) so aurora frames are walkable too.
+option(DUSK_HEAPTRACK_BUILD "Compile the built-in heaptrack allocation tracer (dev heap profiling)" OFF)
+if (DUSK_HEAPTRACK_BUILD)
+    message(STATUS "dusklight: built-in heaptrack tracer ENABLED (-fno-omit-frame-pointer)")
+    add_compile_definitions(DUSK_HEAPTRACK_BUILD=1)
+    add_compile_options(-fno-omit-frame-pointer)
+endif ()
 # Adjust CMAKE_SYSTEM_PROCESSOR on Windows to match compiler target
 include(cmake/WindowsTargetProcessor.cmake)
 if (APPLE AND NOT TVOS AND CMAKE_SYSTEM_NAME STREQUAL tvOS)
@@ -450,6 +461,11 @@ target_compile_definitions(dusklight PRIVATE ${GAME_COMPILE_DEFS})
 target_include_directories(dusklight PRIVATE ${miniz_SOURCE_DIR})
 target_link_libraries(dusklight PRIVATE aurora::main ${GAME_LIBS} ${JSYSTEM_LINK_LIBRARIES})
 target_precompile_headers(dusklight PRIVATE "$<$<COMPILE_LANGUAGE:CXX>:${CMAKE_SOURCE_DIR}/include/dusk_pch.hpp>")
+
+if (DUSK_HEAPTRACK_BUILD AND UNIX AND NOT APPLE)
+    # The built-in tracer's primary stack walk is libunwind (DWARF/CFI); see src/dusk/heaptrack.cpp.
+    target_link_libraries(dusklight PRIVATE unwind)
+endif ()
 
 if (DUSK_ENABLE_CODE_MODS)
     include(cmake/SymbolManifest.cmake)

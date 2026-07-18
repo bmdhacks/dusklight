@@ -28,6 +28,7 @@
 #include "d/d_s_logo.h"
 #include "d/d_s_menu.h"
 #include "d/d_s_play.h"
+#include "dusk/heaptrack.hpp"
 #include "dusk/time.h"
 #include "f_ap/f_ap_game.h"
 #include "f_op/f_op_msg.h"
@@ -529,6 +530,10 @@ int game_main(int argc, char* argv[]) {
     }
     mainCalled = true;
 
+    // Dev-only heap tracer (DUSK_HEAPTRACK_BUILD profiling builds): if DUSKLIGHT_HEAPTRACK=<path> is
+    // set, begin recording allocations here (frame-pointer walk, heaptrack format). No-op otherwise.
+    dusk::heaptrack::init();
+
     dusk::registerSettings();
 
     cxxopts::ParseResult parsed_arg_options;
@@ -878,6 +883,8 @@ int game_main(int argc, char* argv[]) {
     OSReport("Starting main01 (Game Loop)...\n");
 
     main01();
+
+    dusk::heaptrack::shutdown();  // flush the heap trace (no-op unless DUSKLIGHT_HEAPTRACK was set)
 
     dusk::MoviePlayerShutdown();
 
