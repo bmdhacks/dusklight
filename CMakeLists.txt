@@ -492,7 +492,53 @@ if (DUSK_ENABLE_CODE_MODS)
         setup_windows_exports(dusklight)
     endif ()
     # Post-link symbol manifest: hookable-surface name->address map keyed to the build.
+    #
+    # NOTE (fork): do NOT strip the binary after this runs -- see the dusklight-ship target
+    # below. `symgen manifest --embed` relocates the ELF program header table into a new
+    # PT_LOAD at EOF, keeping `PT_PHDR.p_vaddr == p_offset` so that a loader computing
+    # `AT_PHDR = load_addr + e_phoff` still lands on it. strip rewrites file offsets but not
+    # vaddrs, breaking that equality -- fatal on the vendor kernels this fork ships to.
+    #
+    # Stash the freshly-linked, pre-embed image first: symgen refuses to embed into an image
+    # that already carries a symdb section, so the shipping binary below has to start from
+    # this copy rather than from the embedded dusklight. POST_BUILD commands run in the order
+    # they are added, so this one must be registered before setup_symbol_manifest().
+    if (NOT WIN32 AND NOT APPLE)
+        set(DUSK_PREEMBED_BIN "$<TARGET_FILE_DIR:dusklight>/dusklight.pre-embed")
+        add_custom_command(TARGET dusklight POST_BUILD
+                COMMAND "${CMAKE_COMMAND}" -E copy "$<TARGET_FILE:dusklight>"
+                        "${DUSK_PREEMBED_BIN}"
+                COMMENT "Stashing pre-embed image for the shipping binary"
+                VERBATIM)
+    endif ()
     setup_symbol_manifest(dusklight)
+
+    # Shipping binary: stripped AND correctly embedded.
+    #
+    # The deploy recipe used to strip the built (already-embedded) binary, which silently
+    # produced an image that aborts in ld.so before main() on every pre-5.19 kernel:
+    #   Inconsistency detected by ld.so: rtld.c: rtld_setup_main_map:
+    #   Assertion `GL(dl_rtld_map).l_libname' failed!
+    # Old kernels compute AT_PHDR as `load_addr + e_phoff`, which is only correct when
+    # PT_PHDR.p_vaddr == p_offset; strip moves offsets and leaves vaddrs, so ld.so recovers a
+    # garbage load bias. (Linux 5.19 "binfmt_elf: fix AT_PHDR for unusual ELF files" locates
+    # the PT_LOAD actually containing e_phoff, which is why desktops and ROCKNIX/Adreno never
+    # saw this and the RK3326/RK3562/A133P handhelds always did.)
+    #
+    # Order matters: strip FIRST, then embed. The manifest is still generated from the
+    # unstripped image (it needs .symtab); only the embed target is the stripped copy, and
+    # symbol RVAs are unaffected by stripping. Ship this file, and do not strip it again.
+    if (NOT WIN32 AND NOT APPLE AND TARGET symgen)
+        set(DUSK_SHIP_BIN "$<TARGET_FILE_DIR:dusklight>/dusklight.ship")
+        add_custom_target(dusklight-ship
+                COMMAND "${CMAKE_COMMAND}" -E copy "${DUSK_PREEMBED_BIN}" "${DUSK_SHIP_BIN}"
+                COMMAND "${CMAKE_STRIP}" "${DUSK_SHIP_BIN}"
+                COMMAND "${SYMGEN_EXE}" manifest --binary "${DUSK_PREEMBED_BIN}"
+                        --embed "${DUSK_SHIP_BIN}"
+                DEPENDS dusklight
+                COMMENT "Building stripped+embedded shipping binary (dusklight.ship)"
+                VERBATIM)
+    endif ()
 endif ()
 
 # Hook reliability: guaranteed patchable entries on the game ABI surface, and no identical-code folding.
