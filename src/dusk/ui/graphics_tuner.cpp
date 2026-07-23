@@ -9,15 +9,89 @@
 #include <dolphin/vi.h>
 #include <fmt/format.h>
 
+#include "aurora/lib/window.hpp"
+
 #include "dusk/config.hpp"
 #include "dusk/settings.h"
 #include "dusk/texture_replacements.hpp"
 
 #include <algorithm>
+#include <cmath>
+#include <iterator>
 #include <string>
 
 namespace dusk::ui {
 namespace {
+
+// Internal Resolution is a fixed ladder of *screen* fractions: the game renders at
+// (physical drawable / N) and is upscaled to fill the panel. When the displayed area divides
+// evenly by N each rendered pixel lands on an exact NxN block of panel pixels -- pixel-perfect,
+// no upscale shimmer; whether that holds depends on the panel (and its 4:3 letterbox), so it is
+// computed live in internal_res_upscale_factor rather than assumed per step. Ordered low->high;
+// Auto (full screen) is the top. Auto's scale sentinel 0.f means "match the panel exactly".
+struct InternalResStep {
+    float scale;
+    const char* label;
+};
+constexpr InternalResStep kInternalResSteps[] = {
+    {1.0f / 3.0f, "1/3"},  // floor -- for very weak GPUs / large panels
+    {0.5f, "1/2"},
+    {2.0f / 3.0f, "2/3"},
+    {0.75f, "3/4"},
+    {0.0f, "Auto"},        // full screen, 1:1
+};
+constexpr int kInternalResStepCount = static_cast<int>(std::size(kInternalResSteps));
+constexpr int kInternalResAutoIndex = kInternalResStepCount - 1;
+
+float internal_res_index_to_scale(int index) {
+    return kInternalResSteps[std::clamp(index, 0, kInternalResAutoIndex)].scale;
+}
+
+int internal_res_scale_to_index(float scale) {
+    if (scale <= 0.001f || scale >= 0.9f) {
+        return kInternalResAutoIndex;  // 0 (Auto) or a legacy >= screen value -> full screen
+    }
+    int best = 0;
+    float bestErr = std::abs(kInternalResSteps[0].scale - scale);
+    for (int i = 1; i < kInternalResAutoIndex; ++i) {  // skip Auto's 0.f sentinel
+        const float err = std::abs(kInternalResSteps[i].scale - scale);
+        if (err < bestErr) {
+            bestErr = err;
+            best = i;
+        }
+    }
+    return best;
+}
+
+// If the current render size upscales to the displayed area by a whole number (equal in both
+// axes), return that factor (1 = native, 2 = 2:1, ...); otherwise 0 (not pixel-perfect). The
+// displayed area is the 4:3 letterbox of the panel when aspect is locked (TP renders 608x456 ==
+// 4:3), else the full panel -- so a 16:9 1280x720 at 1/3 correctly reads 3:1 (960x720 / 320x240).
+int internal_res_upscale_factor(u32 renderW, u32 renderH) {
+    if (renderW == 0 || renderH == 0) {
+        return 0;
+    }
+    const auto win = aurora::window::get_window_size();
+    u32 regionW = win.native_fb_width;
+    u32 regionH = win.native_fb_height;
+    if (regionW == 0 || regionH == 0) {
+        return 0;
+    }
+    if (getSettings().video.lockAspectRatio.getValue()) {
+        constexpr float kGameAspect = 4.0f / 3.0f;
+        if (static_cast<float>(regionW) / static_cast<float>(regionH) > kGameAspect) {
+            regionW = static_cast<u32>(std::lround(static_cast<float>(regionH) * kGameAspect));
+        } else {
+            regionH = static_cast<u32>(std::lround(static_cast<float>(regionW) / kGameAspect));
+        }
+    }
+    if (regionW % renderW != 0 || regionH % renderH != 0) {
+        return 0;
+    }
+    const u32 fx = regionW / renderW;
+    const u32 fy = regionH / renderH;
+    return fx == fy ? static_cast<int>(fx) : 0;
+}
 
 const Rml::String kDocumentSource = R"RML(
 <rml>
@@ -43,8 +117,7 @@ const Rml::String kDocumentSource = R"RML(
 int get_value(GraphicsOption option) {
     switch (option) {
     case GraphicsOption::InternalResolution:
-        // The var is float to allow sub-native scales (e.g. 0.5x); the tuner carousel steps in
-        // half-multiplier units (0 = Auto, 1 = 0.5x, 2 = 1x, ...).
+        // Float cvar -> fixed carousel index (0 = Auto, 1 = 0.5x .. 7 = 2.0x, see helpers above).
         return graphics_float_carousel_units(
             option, getSettings().game.internalResolutionScale.getValue());
     case GraphicsOption::ShadowResolution:
@@ -68,8 +141,8 @@ int get_value(GraphicsOption option) {
 void set_value(GraphicsOption option, int value) {
     switch (option) {
     case GraphicsOption::InternalResolution: {
-        // Carousel units are half multipliers (see get_value): scale = value * 0.5.
-        const float scale = static_cast<float>(value) * 0.5f;
+        // Carousel index -> GameCube-native scale (0 = Auto, 1..7 = 0.5x..2.0x in fourths).
+        const float scale = internal_res_index_to_scale(value);
         getSettings().game.internalResolutionScale.setValue(scale);
         VISetFrameBufferScale(scale);
         break;
@@ -206,12 +279,13 @@ Rml::String format_graphics_setting_value(GraphicsOption option, int value) {
         u32 width = 0;
         u32 height = 0;
         AuroraGetRenderSize(&width, &height);
-        if (value <= 0) {
-            return fmt::format("Auto ({}×{})", width, height);
-        } else {
-            // Carousel units are half multipliers (see get_value); {:g} trims 1.0 -> "1".
-            return fmt::format("{:g}× ({}×{})", static_cast<float>(value) * 0.5f, width, height);
+        const InternalResStep& step = kInternalResSteps[std::clamp(value, 0, kInternalResAutoIndex)];
+        // Show "N:1" when this size upscales to the display by a whole number (pixel-perfect).
+        const int factor = internal_res_upscale_factor(width, height);
+        if (factor > 0) {
+            return fmt::format("{} ({}×{}, {}:1)", step.label, width, height, factor);
         }
+        return fmt::format("{} ({}×{})", step.label, width, height);
     }
     case GraphicsOption::ShadowResolution:
         return fmt::format("{}×", value);
@@ -254,8 +328,8 @@ Rml::String format_graphics_setting_value(GraphicsOption option, int value) {
 int graphics_float_carousel_units(GraphicsOption option, float rawValue) {
     switch (option) {
     case GraphicsOption::InternalResolution:
-        // Half-multiplier steps: 0 = Auto, 1 = 0.5x, 2 = 1x, ...
-        return static_cast<int>(rawValue * 2.0f + 0.5f);
+        // Fixed ladder: 0 = Auto, 1 = 0.5x, 2 = 0.75x, 3 = 1.0x (GameCube), ... 7 = 2.0x.
+        return internal_res_scale_to_index(rawValue);
     case GraphicsOption::BloomMultiplier:
         return std::clamp(static_cast<int>(rawValue * 100.0f + 0.5f), 0, 100);
     default:

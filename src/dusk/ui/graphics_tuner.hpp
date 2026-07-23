@@ -52,7 +52,8 @@ enum class GraphicsOption {
 Rml::String format_graphics_setting_value(GraphicsOption option, int value);
 
 // Convert a float-backed setting's raw value into the tuner carousel's integer units for the
-// given option (Internal Resolution steps in half multipliers, Bloom Multiplier in percent).
+// given option (Internal Resolution -> a fixed ladder index: 0 = Auto, 1 = 0.5x .. 7 = 2.0x of
+// GameCube-native; Bloom Multiplier -> percent).
 int graphics_float_carousel_units(GraphicsOption option, float rawValue);
 
 struct GraphicsTunerProps {

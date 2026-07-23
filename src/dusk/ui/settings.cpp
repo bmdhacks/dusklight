@@ -297,8 +297,10 @@ void data_folder_dialog_callback(void*, const char* path, const char* error) {
 }
 
 const Rml::String kInternalResolutionHelpText =
-    "Configure the resolution used for rendering the game. Higher values are more demanding on "
-    "your graphics hardware.";
+    "Resolution the game renders at, as a fraction of your screen, then upscaled to fill it. "
+    "Lower fractions run faster on slower hardware. Steps that divide the screen evenly upscale "
+    "pixel-perfectly with no shimmer (shown as 1:1 / 2:1 / 3:1); the rest run a little heavier and "
+    "aren't perfectly aligned. Which steps are pixel-perfect depends on your screen.";
 const Rml::String kShadowResolutionHelpText =
     "Configure the shadow-map resolution. Higher values improve shadow quality but increase GPU "
     "and memory usage.";
@@ -772,9 +774,10 @@ SettingsWindow::SettingsWindow(bool prelaunch) : mPrelaunch(prelaunch) {
                 .title = "Internal Resolution",
                 .helpText = kInternalResolutionHelpText,
                 .valueMin = 0,
-                // Half-multiplier units: 0 = Auto, 1 = 0.5x, 2 = 1x, ... 24 = 12x.
-                .valueMax = 24,
-                .defaultValue = 0,
+                // Screen-fraction ladder index: 0 = 1/3 (floor), 1 = 1/2, 2 = 2/3, 3 = 3/4,
+                // 4 = Auto (full screen, 1:1). Auto is the default (cvar default 0.f == match panel).
+                .valueMax = 4,
+                .defaultValue = 4,
             });
         graphics_tuner_control(*this, leftPane, rightPane,
             getSettings().game.shadowResolutionMultiplier,
