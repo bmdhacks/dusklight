@@ -1462,9 +1462,20 @@ void dMenu_Fmap2DBack_c::stageTextureDraw() {
     pPalette->dataUploaded();
 #endif
 
+    // The spot/explored overlay is an EFB copy: the Aurora GLES RTT path stores it with a
+    // GL bottom-left origin, i.e. vertically flipped vs the static province canvas underneath.
+    // mirrorY cancels that storage flip, registering the overlay with the canvas exactly.
+    // mirrorX follows the game's Mirror Mode only (matching the mpAreaTex region draws and the
+    // getMirrorPosX marker path); it is NOT part of the RTT correction.
+#if TARGET_PC
+    mpSpotTexture->draw(mTransX + getMapScissorAreaLX(), mTransZ + getMapScissorAreaLY(),
+                        getMapScissorAreaSizeRealX(), getMapScissorAreaSizeRealY(),
+                        dusk::getSettings().game.enableMirrorMode, true, false);
+#else
     mpSpotTexture->draw(mTransX + getMapScissorAreaLX(), mTransZ + getMapScissorAreaLY(),
                         getMapScissorAreaSizeRealX(), getMapScissorAreaSizeRealY(), false, false,
                         false);
+#endif
 }
 
 void dMenu_Fmap2DBack_c::worldGridDraw() {

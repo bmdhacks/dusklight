@@ -650,9 +650,12 @@ void dMeterMap_c::draw() {
         const f32 scaledSizeX = sizeX * userHudScale;
         const f32 scaledSizeY = sizeY * userHudScale;
         const f32 mapBottomShift = sizeY - scaledSizeY;
+        // The Aurora offscreen render-to-texture path stores the map texture with a
+        // GL bottom-left origin, i.e. vertically flipped relative to real hardware.
+        // Blitting with mirrorY cancels that storage flip (map + baked-in cursor).
         mMapJ2DPicture->draw(mDoGph_gInf_c::ScaleHUDXLeft(drawPosX),
                              drawPosY + mapBottomShift, scaledSizeX, scaledSizeY,
-                             false, false, false);
+                             false, true, false);
         #else
         mMapJ2DPicture->draw(drawPosX, drawPosY, sizeX, sizeY, false, false, false);
         #endif
