@@ -515,9 +515,6 @@ int game_main(int argc, char* argv[]) {
     }
     mainCalled = true;
 
-    dusk::registerSettings();
-
-
     cxxopts::ParseResult parsed_arg_options;
 
     try {
