@@ -5,7 +5,6 @@
 #include <cmath>
 #include <unordered_map>
 #include <dusk/frame_interpolation.h>
-#include <dusk/logging.h>
 
 namespace dusk::game_clock {
 
@@ -21,41 +20,6 @@ constexpr clock::duration kSimPeriodDuration =
     std::chrono::duration_cast<clock::duration>(std::chrono::duration<float>(sim_pace()));
 constexpr clock::duration kAbnormalGapResetThreshold = std::chrono::milliseconds(250);
 constexpr int kMaxSimTicksPerFrame = 3;
-
-namespace {
-// Long play sessions log to SD cards, so keep this sparse.
-constexpr float kPacingReportPeriod = 30.0f;
-int s_report_paints = 0;
-int s_report_ticks = 0;
-clock::time_point s_report_last{};
-
-// The sim rate and the render rate are the same number in every mode but decoupled, where the whole
-// point is that they diverge. Report both so a slow device can be told apart from a slow game.
-void record_pacing(const MainLoopPacer& out) {
-    ++s_report_paints;
-    s_report_ticks += out.sim_ticks_to_run;
-
-    const clock::time_point now = clock::now();
-    if (s_report_last.time_since_epoch().count() == 0) {
-        s_report_last = now;
-        return;
-    }
-    const float elapsed = std::chrono::duration<float>(now - s_report_last).count();
-    if (elapsed < kPacingReportPeriod) {
-        return;
-    }
-
-    const char* mode = out.is_decoupled       ? "decoupled"
-                       : out.is_interpolating ? "interpolating"
-                                              : "vanilla";
-    DuskLog.info("[clock] sim {:.1f}/s, paint {:.1f}/s ({})", static_cast<float>(s_report_ticks) / elapsed,
-                 static_cast<float>(s_report_paints) / elapsed, mode);
-
-    s_report_ticks = 0;
-    s_report_paints = 0;
-    s_report_last = now;
-}
-}  // namespace
 
 void ensure_initialized() {
     if (s_initialized) {
@@ -99,14 +63,12 @@ MainLoopPacer advance_main_loop() {
     if (!should_interpolate && !decoupled) {
         s_current_snapshot_time = now;
         out.sim_ticks_to_run = 1;
-        record_pacing(out);
         return out;
     }
 
     if (frame_gap > kAbnormalGapResetThreshold) {
         s_current_snapshot_time = now - kSimPeriodDuration;
         out.sim_ticks_to_run = decoupled ? 1 : 0;
-        record_pacing(out);
         return out;
     }
 
@@ -136,7 +98,6 @@ MainLoopPacer advance_main_loop() {
     }
 
     out.sim_ticks_to_run = sim_ticks_to_run;
-    record_pacing(out);
     return out;
 }
 
