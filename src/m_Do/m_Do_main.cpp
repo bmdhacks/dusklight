@@ -930,12 +930,10 @@ int game_main(int argc, char* argv[]) {
     main01();
 
     // We need to cleanly shut down the threads to avoid crashes on shutdown.
+    // (Upstream's daMP_c_Finish supersedes this fork's old dusk::MoviePlayerShutdown.)
     if (daMP_c::m_myObj) {
         daMP_c::m_myObj->daMP_c_Finish();
     }
-
-
-    dusk::MoviePlayerShutdown();
 
     dusk::crash_reporting::shutdown();
     dusk::ShutdownFileLogging();

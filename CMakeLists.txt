@@ -608,8 +608,10 @@ include(cmake/ModSDK.cmake)
 if (DUSK_ENABLE_CODE_MODS AND CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     add_custom_target(dusklight_mods) # Aggregate target for all in-tree mods
     add_subdirectory(mods/template_mod)
-    add_subdirectory(mods/ao_mod)
-    add_subdirectory(mods/shadow_mod)
+    # ao_mod and shadow_mod are skipped on this fork: both are WebGPU demos (add_mod FEATURES
+    # webgpu), and our aurora renders through a hand-rolled GLES backend with Dawn deleted --
+    # there is no wgpu device for them to draw into, and no AuroraDawnProvider.cmake for ModSDK
+    # to pull headers from. Re-enable if the mod SDK ever grows a GLES path.
 endif ()
 
 if (APPLE)

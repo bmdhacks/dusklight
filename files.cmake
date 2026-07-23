@@ -1444,11 +1444,6 @@ set(DUSK_FILES
         src/dusk/gamepad_color.cpp
         src/dusk/globals.cpp
         src/dusk/gyro.cpp
-        include/dusk/menu_pointer.h
-        src/dusk/menu_pointer.cpp
-        src/dusk/mouse.cpp
-		src/dusk/gamepad_color.cpp
-		src/dusk/autosave.cpp
         src/dusk/http/http.hpp
         src/dusk/imgui/ImGuiActorSpawner.cpp
         src/dusk/imgui/ImGuiBloomWindow.cpp
@@ -1494,7 +1489,6 @@ set(DUSK_FILES
         src/dusk/mods/svc/config.cpp
         src/dusk/mods/svc/config.hpp
         src/dusk/mods/svc/game.cpp
-        src/dusk/mods/svc/gfx.cpp
         src/dusk/mods/svc/hook.cpp
         src/dusk/mods/svc/host.cpp
         src/dusk/mods/svc/log.cpp
